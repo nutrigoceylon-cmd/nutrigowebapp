@@ -574,7 +574,7 @@ export function Home() {
               </div>
             </div>
             <div>
-              <div className="flex gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
                 <input type="text" placeholder="Your Name" className="flex-1 px-4 py-3 rounded-xl bg-white text-sm outline-none text-gray-700 placeholder-gray-400" />
                 <input type="email" placeholder="Your Email" className="flex-1 px-4 py-3 rounded-xl bg-white text-sm outline-none text-gray-700 placeholder-gray-400" />
               </div>
