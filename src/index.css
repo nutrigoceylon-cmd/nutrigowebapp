@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Dark forest greens — logo, footer, primary CTAs */
+  --color-primary: #1C3829;
+  --color-secondary: #152B1E;
+
+  /* Mid greens — section headings, links, accents */
+  --color-accent: #3A8C3F;
+  --color-accent-light: #52A846;
+  --color-accent-dark: #2D6B31;
+
+  /* Neutral greens */
+  --color-sage: #8EAF8F;
+  --color-warm-gray: #9CA3A0;
+
+  /* Light backgrounds */
+  --color-light-green: #F0F9F2;
+  --color-surface: #F8FBF8;
+
+  /* Keep gold name for backward compat → now bright green */
+  --color-gold: #3A8C3F;
+  --color-gold-light: #52A846;
+  --color-gold-dark: #2D6B31;
+  --color-light-olive: #EFF9F0;
+  --color-olive: #4A7A4E;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #fff;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #ABB6A2; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #5C622F; }
+
+/* Smooth transitions */
+a, button { transition: all 0.2s ease; }
