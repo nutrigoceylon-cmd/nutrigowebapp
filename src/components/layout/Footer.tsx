@@ -102,17 +102,17 @@ export function Footer() {
             </ul>
             <h4 className="font-semibold text-sm text-white mb-3">Contact Us</h4>
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-white/50 text-sm">
+              <div className="flex items-center gap-2 text-white/50 text-sm min-w-0">
                 <Phone size={13} className="text-accent-light flex-shrink-0" />
-                +94 77 123 4567
+                <span className="break-all">+94 77 123 4567</span>
               </div>
-              <div className="flex items-center gap-2 text-white/50 text-sm">
+              <div className="flex items-center gap-2 text-white/50 text-sm min-w-0">
                 <Mail size={13} className="text-accent-light flex-shrink-0" />
-                hello@nutrigo.lk
+                <span className="break-all">hello@nutrigo.lk</span>
               </div>
-              <div className="flex items-center gap-2 text-white/50 text-sm">
+              <div className="flex items-center gap-2 text-white/50 text-sm min-w-0">
                 <MapPin size={13} className="text-accent-light flex-shrink-0" />
-                Colombo, Sri Lanka
+                <span className="break-all">Colombo, Sri Lanka</span>
               </div>
             </div>
           </div>
