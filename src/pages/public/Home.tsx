@@ -77,7 +77,7 @@ export function Home() {
               <p className="text-gray-500 text-lg leading-relaxed mb-8">
                 Scientifically balanced meal plans, delivered fresh to your door. Achieve your goals with NutriGo.
               </p>
-              <div className="flex flex-wrap gap-4 mb-10">
+              {/* <div className="flex flex-wrap gap-4 mb-10">
                 <OrderNowButton
                   unstyled
                   className="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-white font-semibold px-7 py-3.5 rounded-xl transition-colors shadow-md text-base"
@@ -92,7 +92,7 @@ export function Home() {
                   </div>
                   How it works
                 </button>
-              </div>
+              </div> */}
 
               {/* Trust badges */}
               <div className="flex items-center gap-6 pt-6 border-t border-gray-100 flex-wrap">
@@ -106,12 +106,12 @@ export function Home() {
                     <span className="hidden sm:inline font-medium">{b.label}</span>
                   </div>
                 ))}
-                <a
+                {/* <a
                   href="#calorie-calculator"
                   className="flex items-center gap-1.5 text-sm font-medium text-gold hover:text-gold/80 transition-colors ml-auto"
                 >
                   <Calculator size={14} /> Calculate your calories →
-                </a>
+                </a> */}
               </div>
             </div>
 
@@ -140,8 +140,69 @@ export function Home() {
               </div>
             </div>
           </div>
+
+          <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-3xl border border-primary/10 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Quick Action</p>
+                  <h3 className="mt-2 font-serif text-2xl font-bold text-primary">Order Meal</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Choose a fresh meal plan and start your delivery in just a few steps.
+                  </p>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-light-green text-accent">
+                  <Leaf size={22} />
+                </div>
+              </div>
+              <OrderNowButton
+                unstyled
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-accent to-accent-dark px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-accent/25 ring-1 ring-accent/20 hover:-translate-y-0.5 hover:from-accent-dark hover:to-primary"
+                icon={<ArrowRight size={16} />}
+                iconPosition="end"
+              >
+                Order Meal
+              </OrderNowButton>
+            </div>
+
+            <div className="rounded-3xl border border-accent/10 bg-gradient-to-br from-white to-light-green/60 p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Expert Support</p>
+                  <h3 className="mt-2 font-serif text-2xl font-bold text-primary">Book Health Advisory Session</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Speak with a qualified advisor for nutrition guidance tailored to your goals.
+                  </p>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-primary shadow-sm">
+                  <CalendarDays size={22} />
+                </div>
+              </div>
+              <Link
+                to="/sessions"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-secondary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 ring-1 ring-primary/15 hover:-translate-y-0.5 hover:from-secondary hover:to-primary"
+              >
+                Book Session <ArrowRight size={16} />
+              </Link>
+            </div>
+          </div>
+
+          <a
+            href="#calorie-calculator"
+            className="mt-4 flex w-full items-center justify-center gap-4 rounded-3xl border border-accent/15 bg-white px-6 py-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-md"
+          >
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Nutrition Tool</p>
+              <h3 className="mt-1 font-serif text-xl font-bold text-primary">Go to Calorie Calculator</h3>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-light-green text-accent">
+              <Calculator size={20} />
+            </div>
+          </a>
         </div>
       </section>
+
+      
 
       {/* ── HOW IT WORKS ── */}
       <section className="py-20 bg-white">

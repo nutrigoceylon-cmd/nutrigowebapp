@@ -3,10 +3,9 @@ import { Phone, Mail, MapPin } from 'lucide-react'
 import { BrandLogo } from './BrandLogo'
 
 const socialLinks = [
-  { label: 'f', title: 'Facebook' },
-  { label: '📷', title: 'Instagram' },
-  { label: '▶', title: 'YouTube' },
-  { label: '♪', title: 'TikTok' },
+  { label: 'f', title: 'Facebook', href: 'https://web.facebook.com/profile.php?id=61590527923244' },
+  { label: '📷', title: 'Instagram', href: 'https://www.instagram.com/nutrigoceylon/' },
+  { label: '♪', title: 'TikTok', href: 'https://www.tiktok.com/@nutrigoceylon?is_from_webapp=1&sender_device=pc' },
 ]
 
 export function Footer() {
@@ -26,7 +25,9 @@ export function Footer() {
               {socialLinks.map(s => (
                 <a
                   key={s.title}
-                  href="#"
+                  href={s.href}
+                  target="_blank"
+                  rel="noreferrer"
                   aria-label={s.title}
                   className="w-9 h-9 rounded-full bg-white/10 hover:bg-accent transition-colors flex items-center justify-center text-white/70 hover:text-white text-xs font-bold"
                 >
