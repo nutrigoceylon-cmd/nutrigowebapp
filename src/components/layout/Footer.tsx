@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Leaf, Phone, Mail, MapPin } from 'lucide-react'
+import { Phone, Mail, MapPin } from 'lucide-react'
+import { BrandLogo } from './BrandLogo'
 
 const socialLinks = [
   { label: 'f', title: 'Facebook' },
@@ -15,14 +16,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-2.5 font-bold text-xl mb-3">
-              <div className="bg-white/10 rounded-lg p-1.5">
-                <Leaf size={18} className="text-accent-light" />
-              </div>
-              <div>
-                <span className="font-serif text-white">NutriGo</span>
-                <p className="text-xs font-normal text-white/50 leading-none tracking-wide">Nourish. Transform. Go.</p>
-              </div>
+            <Link to="/" className="inline-flex items-center mb-4 rounded-2xl bg-white px-4 py-3 shadow-sm">
+              <BrandLogo imageClassName="h-12 w-auto" />
             </Link>
             <p className="text-white/50 text-sm leading-relaxed mb-6 max-w-xs">
               Scientifically balanced meals, delivered fresh to your door. Helping you achieve your health goals every day.
@@ -119,7 +114,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-white/10 pt-6 text-center">
-          <p className="text-white/30 text-sm">© 2025 NutriGo (Pvt) Ltd. All rights reserved.</p>
+          <p className="text-white/30 text-sm">© 2026 NutriGo (Pvt) Ltd. All rights reserved.</p>
         </div>
       </div>
     </footer>

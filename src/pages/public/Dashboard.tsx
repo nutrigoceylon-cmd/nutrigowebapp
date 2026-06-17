@@ -11,6 +11,7 @@ import { NutritionChart } from '../../components/charts/NutritionChart'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { StatusBadge } from '../../components/ui/Badge'
+import { OrderNowButton } from '../../components/delivery/OrderNowButton'
 import { formatDate } from '../../lib/helpers'
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -122,9 +123,12 @@ export function Dashboard() {
                   </div>
                 </>
               ) : (
-                <Link to="/menu" className="block text-center py-3 bg-gold text-white rounded-xl text-sm font-medium">
+                <OrderNowButton
+                  unstyled
+                  className="block w-full text-center py-3 bg-gold text-white rounded-xl text-sm font-medium hover:bg-gold-dark"
+                >
                   Subscribe to a Plan
-                </Link>
+                </OrderNowButton>
               )}
             </Card>
 

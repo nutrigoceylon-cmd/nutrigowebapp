@@ -5,10 +5,7 @@ import type { MealPlan, Meal, MealType, GoalType } from '../../types'
 import { supabase } from '../../lib/supabase'
 import { mockMeals, mockMealPlans } from '../../data/mockData'
 import { formatCurrency, getGoalLabel } from '../../lib/helpers'
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-// Replace with your WhatsApp business number (digits only, with country code, no +)
-const WHATSAPP_NUMBER = '94XXXXXXXXX'
+import { buildWhatsAppUrl } from '../../lib/site'
 
 const supabaseConfigured = () =>
   Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
@@ -99,7 +96,7 @@ export function Menu() {
       `Please let me know the price and delivery details. Thank you!`,
     ].join('\n')
 
-    return encodeURIComponent(text)
+    return text
   }
 
   // ─── Checkout navigation ───────────────────────────────────────────────────
@@ -309,7 +306,7 @@ export function Menu() {
             Message us on WhatsApp and our nutrition team will help you choose the right meal for your goals.
           </p>
           <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}`}
+            href={buildWhatsAppUrl()}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20be5c] text-white px-8 py-3 rounded-xl font-medium transition-colors"
@@ -395,7 +392,7 @@ export function Menu() {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Order via WhatsApp</p>
                 <div className="grid grid-cols-2 gap-2">
                   <a
-                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${buildWhatsAppMessage(selectedMeal)}`}
+                    href={buildWhatsAppUrl(buildWhatsAppMessage(selectedMeal))}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20be5c] text-white rounded-xl py-3 text-sm font-medium transition-colors"
@@ -403,7 +400,7 @@ export function Menu() {
                     <MessageCircle size={16} /> Message
                   </a>
                   <a
-                    href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                    href={buildWhatsAppUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 border border-[#25D366]/40 bg-[#25D366]/8 hover:bg-[#25D366]/15 text-[#128C7E] rounded-xl py-3 text-sm font-medium transition-colors"

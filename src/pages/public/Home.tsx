@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Leaf, ShieldCheck, ChevronRight, BookOpen, Headphones, CalendarDays, Star, Play, Calculator, Users, Clock, BadgeCheck } from 'lucide-react'
+import { OrderNowButton } from '../../components/delivery/OrderNowButton'
 import { mockMealPlans, mockArticles } from '../../data/mockData'
 import { formatCurrency, getGoalLabel } from '../../lib/helpers'
 
@@ -77,12 +78,14 @@ export function Home() {
                 Scientifically balanced meal plans, delivered fresh to your door. Achieve your goals with NutriGo.
               </p>
               <div className="flex flex-wrap gap-4 mb-10">
-                <Link
-                  to="/menu"
+                <OrderNowButton
+                  unstyled
                   className="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-white font-semibold px-7 py-3.5 rounded-xl transition-colors shadow-md text-base"
+                  icon={<ArrowRight size={18} />}
+                  iconPosition="end"
                 >
-                  Order Now <ArrowRight size={18} />
-                </Link>
+                  Order Now
+                </OrderNowButton>
                 <button className="inline-flex items-center gap-2.5 text-gray-600 hover:text-primary font-medium text-base transition-colors cursor-pointer">
                   <div className="w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center hover:border-primary transition-colors">
                     <Play size={14} className="text-primary ml-0.5" />
@@ -202,12 +205,12 @@ export function Home() {
                       </div>
                       <span className="font-bold text-gray-900 text-lg">{formatCurrency(plan.price)}<span className="text-xs font-normal text-gray-400">/wk</span></span>
                     </div>
-                    <Link
-                      to="/menu"
+                    <OrderNowButton
+                      unstyled
                       className="block w-full text-center border border-gray-200 hover:border-primary text-gray-600 hover:text-primary py-2.5 rounded-xl text-sm font-medium transition-colors bg-white"
                     >
                       See Menu
-                    </Link>
+                    </OrderNowButton>
                   </div>
                 </div>
               )
@@ -544,13 +547,14 @@ export function Home() {
                   ))}
                 </div>
                 {goalFromTdee && (
-                  <Link
-                    to="/menu"
+                  <OrderNowButton
+                    unstyled
                     className="inline-flex items-center gap-2 bg-accent hover:bg-accent-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
+                    icon={<ArrowRight size={16} />}
+                    iconPosition="end"
                   >
                     See Recommended {goalFromTdee === 'weight_loss' ? 'Weight Loss' : goalFromTdee === 'muscle_gain' ? 'Muscle Gain' : 'Healthy Lifestyle'} Plan
-                    <ArrowRight size={16} />
-                  </Link>
+                  </OrderNowButton>
                 )}
               </div>
             )}

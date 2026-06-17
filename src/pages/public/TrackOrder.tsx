@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { formatCurrency, formatDate, getPaymentMethodLabel, getNutriOrderStatusLabel } from '../../lib/helpers'
 import { StatusBadge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
+import { OrderNowButton } from '../../components/delivery/OrderNowButton'
 
 interface TrackingStep {
   key: NutriOrderStatus
@@ -300,9 +301,12 @@ export function TrackOrder() {
                   <Home size={16} /> Home
                 </Button>
               </Link>
-              <Link to="/menu">
-                <Button variant="ghost">Order Again</Button>
-              </Link>
+              <OrderNowButton
+                unstyled
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-primary hover:bg-light-olive transition-all duration-200"
+              >
+                Order Again
+              </OrderNowButton>
             </div>
           </div>
         )}

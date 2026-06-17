@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Leaf, LayoutDashboard, Users, UtensilsCrossed, ShoppingBag, CreditCard,
+  LayoutDashboard, Users, UtensilsCrossed, ShoppingBag, CreditCard,
   Newspaper, Mic, Calendar, HelpCircle, MessageSquare, Menu, LogOut, ChevronRight,
   Stethoscope, BookMarked,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { BrandLogo } from './BrandLogo'
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -38,11 +39,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-white/10">
-        <Link to="/" className="flex items-center gap-2.5 font-bold text-lg text-white">
-          <div className="bg-gold rounded-lg p-1.5">
-            <Leaf size={16} className="text-white" />
+        <Link to="/" className="flex items-center gap-3">
+          <div className="rounded-2xl bg-white px-3 py-2 shadow-sm">
+            <BrandLogo imageClassName="h-10 w-auto" />
           </div>
-          <span className="font-serif">NutriGo</span>
           <span className="text-xs font-normal text-white/50 ml-1">Admin</span>
         </Link>
       </div>
@@ -85,7 +85,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           to="/"
           className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 text-sm transition-colors"
         >
-          <Leaf size={15} /> View Site
+          <ChevronRight size={15} /> View Site
         </Link>
         <button
           onClick={handleSignOut}
