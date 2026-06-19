@@ -6,11 +6,13 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { formatCurrency } from '../../lib/helpers'
+import { notifySessionBookingWebhook } from '../../lib/sessionBookings'
 
 const specialtyLabels: Record<string, string> = {
-  nutritionist: 'Nutritionist', dietitian: 'Registered Dietitian',
-  personal_trainer: 'Personal Trainer', doctor: 'Doctor',
-  therapist: 'Therapist', wellness_coach: 'Wellness Coach',
+  nutritionist: 'Nutritionist',
+  ayurvedic_doctor: 'Ayurvedic doctor',
+  western_doctor: 'Western doctor',
+  yoga_instructor: 'Yoga instructor',
 }
 
 const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -51,13 +53,17 @@ function getNext30Days(): string[] {
 export function SessionDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   const [provider, setProvider] = useState<Provider | null>(null)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
   const [sessionType, setSessionType] = useState(SESSION_TYPES[0])
   const [notes, setNotes] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
   const [booked, setBooked] = useState(false)
   const [bookedDates, setBookedDates] = useState<string[]>([])
@@ -77,6 +83,12 @@ export function SessionDetail() {
       .then(({ data }) => setBookedDates((data ?? []).map(b => `${b.booking_date}|${b.start_time}`)))
   }, [provider])
 
+  useEffect(() => {
+    setContactName(prev => prev || profile?.full_name || user?.user_metadata?.full_name || '')
+    setContactPhone(prev => prev || profile?.phone || '')
+    setContactEmail(prev => prev || user?.email || '')
+  }, [profile, user])
+
   if (!provider) return null
 
   const availableDates = getNext30Days().filter(d => provider.available_days.includes(getDayOfWeek(d)))
@@ -88,17 +100,46 @@ export function SessionDetail() {
   async function handleBook() {
     if (!user) { navigate('/login?redirect=/sessions/' + id); return }
     if (!selectedDate || !selectedTime) return
+    if (!provider) return
+    if (!contactName.trim() || !contactPhone.trim() || !contactEmail.trim()) {
+      setFormError('Name, phone number, and email are required for session booking.')
+      return
+    }
+
+    setFormError('')
     setLoading(true)
-    const { error } = await supabase.from('session_bookings').insert({
-      provider_id: provider!.id,
+    const currentProvider = provider
+    const { data, error } = await supabase.from('session_bookings').insert({
+      provider_id: currentProvider.id,
       user_id: user.id,
       booking_date: selectedDate,
       start_time: selectedTime,
       session_type: sessionType,
       notes,
-    })
+      contact_name: contactName.trim(),
+      contact_phone: contactPhone.trim(),
+      contact_email: contactEmail.trim(),
+    }).select('id').single()
+
     setLoading(false)
-    if (!error) setBooked(true)
+    if (!error && data) {
+      setBooked(true)
+      notifySessionBookingWebhook({
+        bookingId: data.id,
+        providerId: currentProvider.id,
+        providerName: currentProvider.name,
+        providerSpecialty: specialtyLabels[currentProvider.specialty] ?? currentProvider.specialty,
+        sessionType,
+        bookingDate: selectedDate,
+        startTime: selectedTime,
+        notes: notes.trim(),
+        contactName: contactName.trim(),
+        contactPhone: contactPhone.trim(),
+        contactEmail: contactEmail.trim(),
+      }).catch(webhookError => {
+        console.error('Session booking webhook failed:', webhookError)
+      })
+    }
   }
 
   if (booked) {
@@ -145,7 +186,7 @@ export function SessionDetail() {
             <div className="p-6">
               <h2 className="font-serif text-xl font-bold text-primary mb-0.5">{provider.name}</h2>
               <p className="text-gold text-sm font-medium mb-1">{provider.title}</p>
-              <p className="text-xs text-gray-500 mb-4 capitalize">{specialtyLabels[provider.specialty] ?? provider.specialty}</p>
+              <p className="text-xs text-gray-500 mb-4">{specialtyLabels[provider.specialty] ?? provider.specialty}</p>
 
               {provider.bio && <p className="text-gray-500 text-sm leading-relaxed mb-5">{provider.bio}</p>}
 
@@ -256,6 +297,38 @@ export function SessionDetail() {
             )}
 
             {/* Notes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">Your Name</label>
+                <input
+                  value={contactName}
+                  onChange={e => setContactName(e.target.value)}
+                  placeholder="Full name"
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-gold"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">Phone Number</label>
+                <input
+                  value={contactPhone}
+                  onChange={e => setContactPhone(e.target.value)}
+                  placeholder="07XXXXXXXX"
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-gold"
+                />
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <label className="text-sm font-medium text-gray-700 block mb-1.5">Email Address</label>
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={e => setContactEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-gold"
+              />
+            </div>
+
             <div className="mb-6">
               <label className="text-sm font-medium text-gray-700 block mb-1.5">Reason / Notes <span className="text-gray-400 font-normal">(optional)</span></label>
               <textarea
@@ -267,11 +340,20 @@ export function SessionDetail() {
               />
             </div>
 
+            {formError && (
+              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {formError}
+              </div>
+            )}
+
             {/* Summary */}
             {selectedDate && selectedTime && (
               <div className="bg-light-olive/40 border border-sage/30 rounded-xl p-4 mb-5 text-sm space-y-1">
                 <p className="font-semibold text-gray-800 mb-2">Booking Summary</p>
                 <p className="text-gray-600"><span className="text-gray-400">Provider:</span> {provider.name}</p>
+                <p className="text-gray-600"><span className="text-gray-400">Client:</span> {contactName || '—'}</p>
+                <p className="text-gray-600"><span className="text-gray-400">Phone:</span> {contactPhone || '—'}</p>
+                <p className="text-gray-600"><span className="text-gray-400">Email:</span> {contactEmail || '—'}</p>
                 <p className="text-gray-600"><span className="text-gray-400">Date:</span> {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 <p className="text-gray-600"><span className="text-gray-400">Time:</span> {selectedTime}</p>
                 <p className="text-gray-600"><span className="text-gray-400">Type:</span> {sessionType}</p>
@@ -284,7 +366,7 @@ export function SessionDetail() {
               size="lg"
               onClick={handleBook}
               loading={loading}
-              disabled={!selectedDate || !selectedTime || !user}
+              disabled={!selectedDate || !selectedTime || !user || !contactName.trim() || !contactPhone.trim() || !contactEmail.trim()}
             >
               {!user ? 'Sign In to Book' : 'Confirm Booking'}
             </Button>

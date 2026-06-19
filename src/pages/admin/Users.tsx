@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, UserCog } from 'lucide-react'
-import { mockUsers } from '../../data/mockData'
+import { supabase } from '../../lib/supabase'
 import { Table } from '../../components/ui/Table'
 import { StatusBadge } from '../../components/ui/Badge'
 import { Modal } from '../../components/ui/Modal'
@@ -12,8 +12,13 @@ import { formatDate, getGoalLabel } from '../../lib/helpers'
 export function AdminUsers() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all')
-  const [users, setUsers] = useState(mockUsers)
+  const [users, setUsers] = useState<Profile[]>([])
   const [editUser, setEditUser] = useState<Profile | null>(null)
+
+  useEffect(() => {
+    supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => setUsers(data ?? []))
+  }, [])
 
   const filtered = users.filter(u => {
     const matchSearch = u.full_name.toLowerCase().includes(search.toLowerCase())
@@ -24,6 +29,7 @@ export function AdminUsers() {
   function handleRoleChange(role: UserRole) {
     if (!editUser) return
     setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, role } : u))
+    supabase.from('profiles').update({ role }).eq('id', editUser.id)
     setEditUser(null)
   }
 

@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Check, ChevronRight, ShoppingCart, Minus, Plus, ArrowLeft } from 'lucide-react'
 import type { MealPlan, Meal, MealType } from '../../types'
-import { supabase } from '../../lib/supabase'
-import { mockMealPlans, mockMeals } from '../../data/mockData'
+import { supabase, supabaseConfigured } from '../../lib/supabase'
 import { formatCurrency, getGoalLabel } from '../../lib/helpers'
 import { Button } from '../../components/ui/Button'
 
@@ -19,9 +18,6 @@ interface SelectedMeal {
   meal: Meal
   quantity: number
 }
-
-const supabaseConfigured = () =>
-  Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
 
 export function MealSelection() {
   const { planId } = useParams<{ planId: string }>()
@@ -39,12 +35,7 @@ export function MealSelection() {
   }, [planId])
 
   async function loadPlanAndMeals(id: string) {
-    if (!supabaseConfigured()) {
-      const foundPlan = mockMealPlans.find(p => p.id === id)
-      if (!foundPlan) { navigate('/menu'); return }
-      setPlan(foundPlan)
-      // Show all available meals (catalog approach — plan sets pricing, not meal restriction)
-      setMeals(mockMeals)
+    if (!supabaseConfigured) {
       setLoading(false)
       return
     }
@@ -58,8 +49,7 @@ export function MealSelection() {
     if (!planData) { navigate('/menu'); return }
     setPlan(planData)
 
-    // If no meals assigned to this plan yet, fall back to mock catalog so the flow is always usable
-    setMeals(mealData && mealData.length > 0 ? mealData : mockMeals)
+    setMeals(mealData ?? [])
     setLoading(false)
   }
 

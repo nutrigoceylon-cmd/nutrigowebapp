@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseConfigured } from '../lib/supabase'
 import type { Profile, UserRole } from '../types'
 
 interface AuthContextValue {
@@ -15,30 +15,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-// Mock profile for development (when Supabase isn't configured)
-const DEMO_PROFILE: Profile = {
-  id: 'demo-user',
-  full_name: 'Demo User',
-  role: 'user',
-  goal: 'weight_loss',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-}
-
-const DEMO_ADMIN_PROFILE: Profile = {
-  id: 'demo-admin',
-  full_name: 'Admin User',
-  role: 'admin',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-
-  const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -71,12 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(email: string, password: string) {
     if (!supabaseConfigured) {
-      const isAdmin = email === 'admin@nutrigo.com'
-      const mockUser = { id: isAdmin ? 'demo-admin' : 'demo-user' } as User
-      const p = isAdmin ? DEMO_ADMIN_PROFILE : DEMO_PROFILE
-      setUser(mockUser)
-      setProfile(p)
-      return { error: null, role: p.role }
+      return { error: new Error('Supabase is not configured.'), role: null }
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error || !data.user) return { error, role: null }
@@ -86,10 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signUp(email: string, password: string, fullName: string) {
     if (!supabaseConfigured) {
-      const mockUser = { id: 'demo-user' } as User
-      setUser(mockUser)
-      setProfile({ ...DEMO_PROFILE, full_name: fullName })
-      return { error: null }
+      return { error: new Error('Supabase is not configured.') }
     }
     const { error } = await supabase.auth.signUp({
       email,
@@ -101,8 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     if (!supabaseConfigured) {
-      setUser(null)
-      setProfile(null)
       return
     }
     await supabase.auth.signOut()

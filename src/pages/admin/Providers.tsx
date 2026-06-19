@@ -2,23 +2,22 @@ import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Power } from 'lucide-react'
 import type { Provider, ProviderSpecialty } from '../../types'
 import { supabase } from '../../lib/supabase'
+import { ImageUpload } from '../../components/ui/ImageUpload'
 import { Table } from '../../components/ui/Table'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
-import { Input, Select } from '../../components/ui/Input'
+import { Input, Select, Textarea } from '../../components/ui/Input'
 import { StatusBadge } from '../../components/ui/Badge'
 import { formatCurrency } from '../../lib/helpers'
 
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
 const specialties: { value: ProviderSpecialty; label: string }[] = [
   { value: 'nutritionist', label: 'Nutritionist' },
-  { value: 'dietitian', label: 'Registered Dietitian' },
-  { value: 'personal_trainer', label: 'Personal Trainer' },
-  { value: 'doctor', label: 'Doctor' },
-  { value: 'therapist', label: 'Therapist' },
-  { value: 'wellness_coach', label: 'Wellness Coach' },
+  { value: 'ayurvedic_doctor', label: 'Ayurvedic doctor' },
+  { value: 'western_doctor', label: 'Western doctor' },
+  { value: 'yoga_instructor', label: 'Yoga instructor' },
 ]
-
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const defaultForm = {
   name: '', title: '', specialty: 'nutritionist' as ProviderSpecialty,
@@ -128,7 +127,7 @@ export function AdminProviders() {
               </div>
             ),
           },
-          { key: 'specialty', label: 'Specialty', render: p => <span className="text-sm text-gray-600">{specialtyLabel(p.specialty)}</span> },
+          { key: 'specialty', label: 'Category', render: p => <span className="text-sm text-gray-600">{specialtyLabel(p.specialty)}</span> },
           { key: 'session_price', label: 'Price/Session', render: p => <span className="font-semibold text-primary">{formatCurrency(p.session_price)}</span> },
           { key: 'session_duration', label: 'Duration', render: p => <span className="text-sm text-gray-600">{p.session_duration} min</span> },
           { key: 'is_active', label: 'Status', render: p => <StatusBadge status={p.is_active ? 'active' : 'cancelled'} /> },
@@ -156,11 +155,12 @@ export function AdminProviders() {
           <Select label="Specialty" value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value as ProviderSpecialty }))}
             options={specialties}
           />
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1.5">Bio</label>
-            <textarea value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={3} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-gold resize-none" placeholder="Brief professional background..." />
-          </div>
-          <Input label="Profile Photo URL" value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." />
+          <Textarea label="Bio" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={3} placeholder="Brief professional background..." />
+          <ImageUpload
+            label="Profile Photo"
+            value={form.image_url}
+            onChange={url => setForm(f => ({ ...f, image_url: url }))}
+          />
           <div className="grid grid-cols-2 gap-4">
             <Input label="Session Price ($)" type="number" value={String(form.session_price)} onChange={e => setForm(f => ({ ...f, session_price: Number(e.target.value) }))} />
             <Input label="Session Duration (min)" type="number" value={String(form.session_duration)} onChange={e => setForm(f => ({ ...f, session_duration: Number(e.target.value) }))} />

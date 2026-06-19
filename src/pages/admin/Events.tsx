@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import type { Event, EventType, EventStatus } from '../../types'
 import { supabase } from '../../lib/supabase'
+import { ImageUpload } from '../../components/ui/ImageUpload'
 import { Table } from '../../components/ui/Table'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -15,7 +16,7 @@ export function AdminEvents() {
   const [editing, setEditing] = useState<Event | null>(null)
   const [form, setForm] = useState({
     title: '', description: '', event_type: 'webinar' as EventType,
-    start_date: '', end_date: '', location: '', is_virtual: false,
+    start_date: '', end_date: '', location: '', image_url: '', is_virtual: false,
     max_attendees: 50, status: 'upcoming' as EventStatus,
   })
 
@@ -28,19 +29,31 @@ export function AdminEvents() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ title: '', description: '', event_type: 'webinar', start_date: '', end_date: '', location: '', is_virtual: false, max_attendees: 50, status: 'upcoming' })
+    setForm({ title: '', description: '', event_type: 'webinar', start_date: '', end_date: '', location: '', image_url: '', is_virtual: false, max_attendees: 50, status: 'upcoming' })
     setModalOpen(true)
   }
 
   function openEdit(event: Event) {
     setEditing(event)
-    setForm({ title: event.title, description: event.description ?? '', event_type: event.event_type, start_date: event.start_date.split('T')[0], end_date: event.end_date.split('T')[0], location: event.location ?? '', is_virtual: event.is_virtual, max_attendees: event.max_attendees, status: event.status })
+    setForm({
+      title: event.title,
+      description: event.description ?? '',
+      event_type: event.event_type,
+      start_date: event.start_date.split('T')[0],
+      end_date: event.end_date.split('T')[0],
+      location: event.location ?? '',
+      image_url: event.image_url ?? '',
+      is_virtual: event.is_virtual,
+      max_attendees: event.max_attendees,
+      status: event.status,
+    })
     setModalOpen(true)
   }
 
   async function handleSave() {
     const payload = {
       ...form,
+      image_url: form.image_url || null,
       start_date: form.start_date ? `${form.start_date}T00:00:00` : form.start_date,
       end_date: form.end_date ? `${form.end_date}T00:00:00` : form.end_date,
     }
@@ -97,6 +110,11 @@ export function AdminEvents() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Event' : 'New Event'} size="lg">
         <div className="space-y-4">
+          <ImageUpload
+            label="Event Image"
+            value={form.image_url}
+            onChange={url => setForm(f => ({ ...f, image_url: url }))}
+          />
           <Input label="Event Title" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1.5">Description</label>

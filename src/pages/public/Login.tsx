@@ -20,7 +20,6 @@ export function Login() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState('')
-  const isDemoMode = !import.meta.env.VITE_SUPABASE_URL
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -30,7 +29,7 @@ export function Login() {
     setServerError('')
     const { error, role } = await signIn(data.email, data.password)
     if (error) {
-      setServerError(isDemoMode ? 'Invalid email or password. Try admin@nutrigo.com for demo.' : 'Invalid email or password. Check your credentials or confirm your email first.')
+      setServerError(error.message === 'Supabase is not configured.' ? 'Authentication is unavailable right now.' : 'Invalid email or password. Check your credentials or confirm your email first.')
     } else {
       navigate(role === 'admin' ? '/admin' : '/dashboard')
     }
@@ -81,12 +80,6 @@ export function Login() {
             Don't have an account?{' '}
             <Link to="/signup" className="text-gold font-medium hover:text-gold-dark">Create one for free</Link>
           </p>
-
-          {isDemoMode && (
-            <div className="bg-light-olive/60 border border-sage/30 rounded-xl p-4 mb-6 text-sm text-gray-600">
-              <strong>Demo Mode:</strong> Use <span className="font-mono text-primary">admin@nutrigo.com</span> / any password for admin access, or any other email for user access.
-            </div>
-          )}
 
           {serverError && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-6">

@@ -27,12 +27,15 @@ export function Podcast() {
           <p className="text-gold font-semibold text-sm uppercase tracking-widest mb-3">Audio Content</p>
           <h1 className="font-serif text-4xl sm:text-5xl font-bold text-white mb-4">The NutriGo Podcast</h1>
           <p className="text-white/60 text-lg">Deep-dive conversations on nutrition, performance, and the science of healthy living. New episodes weekly.</p>
-          <div className="flex justify-center gap-4 mt-8">
-            {['Apple Podcasts', 'Spotify', 'Google Podcasts'].map(platform => (
-              <a key={platform} href="#" className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white text-sm font-medium transition-colors">
-                {platform}
-              </a>
-            ))}
+          <div className="flex justify-center gap-4 mt-8 flex-wrap">
+            <div className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm font-medium">
+              {podcasts.length} published episode{podcasts.length === 1 ? '' : 's'}
+            </div>
+            {latest && (
+              <div className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm font-medium">
+                Latest: Ep. {latest.episode_number}
+              </div>
+            )}
           </div>
         </div>
       </section>

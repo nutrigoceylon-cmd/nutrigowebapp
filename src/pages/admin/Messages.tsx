@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { mockContactMessages } from '../../data/mockData'
+import { useEffect, useState } from 'react'
+import { supabase } from '../../lib/supabase'
 import type { ContactMessage, ContactStatus } from '../../types'
 import { StatusBadge } from '../../components/ui/Badge'
 import { Modal } from '../../components/ui/Modal'
@@ -8,13 +8,19 @@ import { formatDate } from '../../lib/helpers'
 import { Mail, MailOpen, MessageSquareReply } from 'lucide-react'
 
 export function AdminMessages() {
-  const [messages, setMessages] = useState(mockContactMessages)
+  const [messages, setMessages] = useState<ContactMessage[]>([])
   const [selected, setSelected] = useState<ContactMessage | null>(null)
   const [replyText, setReplyText] = useState('')
   const [replied, setReplied] = useState(false)
 
+  useEffect(() => {
+    supabase.from('contact_messages').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => setMessages(data ?? []))
+  }, [])
+
   function updateStatus(id: string, status: ContactStatus) {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, status } : m))
+    supabase.from('contact_messages').update({ status }).eq('id', id)
   }
 
   function openMessage(msg: ContactMessage) {

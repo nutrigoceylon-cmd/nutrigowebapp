@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
 import type { Article } from '../../types'
 import { supabase } from '../../lib/supabase'
+import { ImageUpload } from '../../components/ui/ImageUpload'
 import { Table } from '../../components/ui/Table'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -15,7 +16,7 @@ export function AdminArticles() {
   const [articles, setArticles] = useState<Article[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Article | null>(null)
-  const [form, setForm] = useState({ title: '', excerpt: '', category: categories[0], content: '', is_published: false })
+  const [form, setForm] = useState({ title: '', excerpt: '', category: categories[0], content: '', image_url: '', is_published: false })
 
   useEffect(() => { load() }, [])
 
@@ -26,23 +27,31 @@ export function AdminArticles() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ title: '', excerpt: '', category: categories[0], content: '', is_published: false })
+    setForm({ title: '', excerpt: '', category: categories[0], content: '', image_url: '', is_published: false })
     setModalOpen(true)
   }
 
   function openEdit(article: Article) {
     setEditing(article)
-    setForm({ title: article.title, excerpt: article.excerpt ?? '', category: article.category, content: article.content, is_published: article.is_published })
+    setForm({
+      title: article.title,
+      excerpt: article.excerpt ?? '',
+      category: article.category,
+      content: article.content,
+      image_url: article.image_url ?? '',
+      is_published: article.is_published,
+    })
     setModalOpen(true)
   }
 
   async function handleSave() {
     const slug = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const payload = { ...form, image_url: form.image_url || null }
     if (editing) {
-      await supabase.from('articles').update({ ...form, slug }).eq('id', editing.id)
+      await supabase.from('articles').update({ ...payload, slug }).eq('id', editing.id)
     } else {
       await supabase.from('articles').insert({
-        ...form, slug, tags: [],
+        ...payload, slug, tags: [],
         published_at: form.is_published ? new Date().toISOString() : null,
       })
     }
@@ -104,6 +113,11 @@ export function AdminArticles() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Article' : 'New Article'} size="lg">
         <div className="space-y-4">
+          <ImageUpload
+            label="Article Image"
+            value={form.image_url}
+            onChange={url => setForm(f => ({ ...f, image_url: url }))}
+          />
           <Input label="Title" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
           <Select
             label="Category"
