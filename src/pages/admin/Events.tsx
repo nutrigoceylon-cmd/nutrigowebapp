@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
-import type { Event, EventType, EventStatus } from '../../types'
+import { Plus, Pencil, Trash2, Users } from 'lucide-react'
+import type { Event, EventRegistration, EventType, EventStatus } from '../../types'
 import { supabase } from '../../lib/supabase'
+import { ImageUpload } from '../../components/ui/ImageUpload'
 import { Table } from '../../components/ui/Table'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -13,9 +14,13 @@ export function AdminEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Event | null>(null)
+  const [registrationsOpen, setRegistrationsOpen] = useState(false)
+  const [viewingEvent, setViewingEvent] = useState<Event | null>(null)
+  const [registrations, setRegistrations] = useState<EventRegistration[]>([])
+  const [loadingRegistrations, setLoadingRegistrations] = useState(false)
   const [form, setForm] = useState({
     title: '', description: '', event_type: 'webinar' as EventType,
-    start_date: '', end_date: '', location: '', is_virtual: false,
+    start_date: '', end_date: '', location: '', image_url: '', is_virtual: false,
     max_attendees: 50, status: 'upcoming' as EventStatus,
   })
 
@@ -28,19 +33,31 @@ export function AdminEvents() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ title: '', description: '', event_type: 'webinar', start_date: '', end_date: '', location: '', is_virtual: false, max_attendees: 50, status: 'upcoming' })
+    setForm({ title: '', description: '', event_type: 'webinar', start_date: '', end_date: '', location: '', image_url: '', is_virtual: false, max_attendees: 50, status: 'upcoming' })
     setModalOpen(true)
   }
 
   function openEdit(event: Event) {
     setEditing(event)
-    setForm({ title: event.title, description: event.description ?? '', event_type: event.event_type, start_date: event.start_date.split('T')[0], end_date: event.end_date.split('T')[0], location: event.location ?? '', is_virtual: event.is_virtual, max_attendees: event.max_attendees, status: event.status })
+    setForm({
+      title: event.title,
+      description: event.description ?? '',
+      event_type: event.event_type,
+      start_date: event.start_date.split('T')[0],
+      end_date: event.end_date.split('T')[0],
+      location: event.location ?? '',
+      image_url: event.image_url ?? '',
+      is_virtual: event.is_virtual,
+      max_attendees: event.max_attendees,
+      status: event.status,
+    })
     setModalOpen(true)
   }
 
   async function handleSave() {
     const payload = {
       ...form,
+      image_url: form.image_url || null,
       start_date: form.start_date ? `${form.start_date}T00:00:00` : form.start_date,
       end_date: form.end_date ? `${form.end_date}T00:00:00` : form.end_date,
     }
@@ -58,6 +75,28 @@ export function AdminEvents() {
       await supabase.from('events').delete().eq('id', id)
       setEvents(prev => prev.filter(e => e.id !== id))
     }
+  }
+
+  async function openRegistrations(event: Event) {
+    setViewingEvent(event)
+    setRegistrationsOpen(true)
+    setLoadingRegistrations(true)
+
+    const { data } = await supabase
+      .from('event_registrations')
+      .select('*')
+      .eq('event_id', event.id)
+      .order('created_at', { ascending: false })
+
+    setRegistrations(data ?? [])
+    setLoadingRegistrations(false)
+  }
+
+  function closeRegistrations() {
+    setRegistrationsOpen(false)
+    setViewingEvent(null)
+    setRegistrations([])
+    setLoadingRegistrations(false)
   }
 
   return (
@@ -85,6 +124,13 @@ export function AdminEvents() {
             key: 'actions', label: '',
             render: e => (
               <div className="flex gap-2">
+                <button
+                  onClick={() => openRegistrations(e)}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                  title="View registrations"
+                >
+                  <Users size={14} />
+                </button>
                 <button onClick={() => openEdit(e)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary transition-colors cursor-pointer"><Pencil size={14} /></button>
                 <button onClick={() => handleDelete(e.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"><Trash2 size={14} /></button>
               </div>
@@ -97,6 +143,11 @@ export function AdminEvents() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Event' : 'New Event'} size="lg">
         <div className="space-y-4">
+          <ImageUpload
+            label="Event Image"
+            value={form.image_url}
+            onChange={url => setForm(f => ({ ...f, image_url: url }))}
+          />
           <Input label="Event Title" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1.5">Description</label>
@@ -135,6 +186,54 @@ export function AdminEvents() {
             <Button variant="outline" onClick={() => setModalOpen(false)} fullWidth>Cancel</Button>
             <Button onClick={handleSave} fullWidth>{editing ? 'Save' : 'Create Event'}</Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={registrationsOpen}
+        onClose={closeRegistrations}
+        title={viewingEvent ? `${viewingEvent.title} Registrations` : 'Event Registrations'}
+        size="xl"
+      >
+        <div className="space-y-4">
+          {viewingEvent && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-light-olive/30 px-4 py-3 text-sm">
+              <div>
+                <p className="font-medium text-gray-900">{viewingEvent.title}</p>
+                <p className="text-gray-500">{formatDateShort(viewingEvent.start_date)}</p>
+              </div>
+              <div className="text-gray-600">
+                {registrations.length} registration{registrations.length === 1 ? '' : 's'}
+              </div>
+            </div>
+          )}
+
+          {loadingRegistrations ? (
+            <div className="py-12 text-center text-sm text-gray-400">Loading registrations...</div>
+          ) : (
+            <Table
+              columns={[
+                {
+                  key: 'contact_name',
+                  label: 'Attendee',
+                  render: r => (
+                    <div>
+                      <p className="font-medium text-gray-900">{r.contact_name || r.profile?.full_name || '—'}</p>
+                      <p className="text-xs text-gray-400 capitalize mt-0.5">{r.attendee_gender || '—'}</p>
+                    </div>
+                  ),
+                },
+                { key: 'contact_phone', label: 'Phone', render: r => r.contact_phone || '—' },
+                { key: 'contact_email', label: 'Email', render: r => r.contact_email || '—' },
+                { key: 'attendee_age', label: 'Age', render: r => r.attendee_age ?? '—' },
+                { key: 'status', label: 'Status', render: r => <StatusBadge status={r.status} /> },
+                { key: 'created_at', label: 'Registered', render: r => formatDateShort(r.created_at) },
+              ]}
+              data={registrations}
+              keyExtractor={r => r.id}
+              emptyMessage="No registrations for this event yet."
+            />
+          )}
         </div>
       </Modal>
     </div>

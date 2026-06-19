@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Menu, X, Leaf, User, LogOut, LayoutDashboard } from 'lucide-react'
+import { Menu, X, User, LogOut, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { BrandLogo } from './BrandLogo'
 
 const navLinks = [
   { to: '/about', label: 'About Us' },
@@ -9,7 +10,7 @@ const navLinks = [
   { to: '/sessions', label: 'Book a Session' },
   { to: '/articles', label: 'Articles' },
   { to: '/events', label: 'Events' },
-  { to: '/faq', label: 'FAQ' },
+  { to: '/podcast', label: 'Podcast' },
 ]
 
 export function Header() {
@@ -30,14 +31,8 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary hover:text-accent transition-colors">
-            <div className="bg-primary rounded-lg p-1.5">
-              <Leaf size={18} className="text-white" />
-            </div>
-            <div>
-              <span className="font-serif text-primary">NutriGo</span>
-              <p className="text-xs font-normal text-gray-400 leading-none tracking-wide">Nourish. Transform. Go.</p>
-            </div>
+          <Link to="/" className="flex items-center transition-opacity hover:opacity-90">
+            <BrandLogo imageClassName="h-10 sm:h-11 w-auto" />
           </Link>
 
           {/* Desktop nav */}

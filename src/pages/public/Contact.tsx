@@ -44,8 +44,8 @@ export function Contact() {
             <div className="space-y-5">
               {[
                 { icon: Mail, label: 'Email', value: 'hello@nutrigo.com' },
-                { icon: Phone, label: 'Phone', value: '(415) 555-0123' },
-                { icon: MapPin, label: 'Address', value: '42 Wellness Ave, San Francisco, CA 94102' },
+                { icon: Phone, label: 'Phone', value: '071 413 9923' },
+                { icon: MapPin, label: 'Address', value: '103/J, Sunflower Garden, Kahathuduwa, Polgasowita' },
                 { icon: Clock, label: 'Support Hours', value: 'Mon–Sat, 8 AM – 6 PM PST' },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex gap-4">

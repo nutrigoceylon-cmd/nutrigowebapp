@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { Calendar, MapPin, Video, Users } from 'lucide-react'
 import type { Event } from '../../types'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
 import { formatDate } from '../../lib/helpers'
 import { StatusBadge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { Input, Select } from '../../components/ui/Input'
 
 const eventTypeIcons: Record<string, string> = {
   cooking_class: '🍳',
@@ -16,10 +18,21 @@ const eventTypeIcons: Record<string, string> = {
 }
 
 export function Events() {
+  const { user, profile } = useAuth()
   const [events, setEvents] = useState<Event[]>([])
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed'>('all')
   const [registerEvent, setRegisterEvent] = useState<string | null>(null)
   const [registered, setRegistered] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [registrationForm, setRegistrationForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    age: '',
+    gender: 'male',
+  })
 
   useEffect(() => {
     supabase.from('events').select('*').order('start_date', { ascending: false })
@@ -31,11 +44,85 @@ export function Events() {
   const past = filtered.filter(e => e.status === 'completed' || e.status === 'cancelled')
   const selectedEvent = events.find(e => e.id === registerEvent)
 
-  function handleRegister() {
+  useEffect(() => {
+    if (!registerEvent) return
+
+    setRegistrationForm({
+      name: profile?.full_name || user?.user_metadata?.full_name || '',
+      phone: profile?.phone || '',
+      email: user?.email || '',
+      age: '',
+      gender: 'male',
+    })
+    setFormErrors({})
+    setSubmitError('')
+  }, [registerEvent, profile, user])
+
+  function openRegistration(eventId: string) {
+    setRegistered(false)
+    setRegisterEvent(eventId)
+  }
+
+  function closeRegistration() {
+    setRegisterEvent(null)
+    setRegistered(false)
+    setSubmitting(false)
+    setSubmitError('')
+    setFormErrors({})
+  }
+
+  async function handleRegister() {
+    if (!selectedEvent) return
+
+    const nextErrors: Record<string, string> = {}
+    const trimmedName = registrationForm.name.trim()
+    const trimmedPhone = registrationForm.phone.trim()
+    const trimmedEmail = registrationForm.email.trim()
+    const age = Number(registrationForm.age)
+
+    if (!trimmedName) nextErrors.name = 'Name is required.'
+    if (!trimmedPhone) nextErrors.phone = 'Phone number is required.'
+    else if (!/^[0-9+\s()-]{7,}$/.test(trimmedPhone)) nextErrors.phone = 'Enter a valid phone number.'
+    if (!trimmedEmail) nextErrors.email = 'Email address is required.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) nextErrors.email = 'Enter a valid email address.'
+    if (!registrationForm.age) nextErrors.age = 'Age is required.'
+    else if (!Number.isInteger(age) || age < 1 || age > 120) nextErrors.age = 'Enter a valid age.'
+    if (!['male', 'female', 'other'].includes(registrationForm.gender)) nextErrors.gender = 'Please select a gender.'
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors)
+      return
+    }
+
+    setFormErrors({})
+    setSubmitError('')
+    setSubmitting(true)
+
+    const { error } = await supabase.from('event_registrations').insert({
+      event_id: selectedEvent.id,
+      user_id: user?.id ?? null,
+      contact_name: trimmedName,
+      contact_phone: trimmedPhone,
+      contact_email: trimmedEmail,
+      attendee_age: age,
+      attendee_gender: registrationForm.gender,
+      status: 'registered',
+    })
+
+    setSubmitting(false)
+
+    if (error) {
+      if (error.code === '23505') {
+        setSubmitError('You have already registered for this event.')
+        return
+      }
+      setSubmitError(error.message || 'Registration failed. Please try again.')
+      return
+    }
+
     setRegistered(true)
     setTimeout(() => {
-      setRegistered(false)
-      setRegisterEvent(null)
+      closeRegistration()
     }, 2500)
   }
 
@@ -111,7 +198,7 @@ export function Events() {
                         <span>{event.max_attendees} spots available</span>
                       </div>
                     </div>
-                    <Button size="sm" fullWidth onClick={() => setRegisterEvent(event.id)}>Register Now</Button>
+                    <Button size="sm" fullWidth onClick={() => openRegistration(event.id)}>Register Now</Button>
                   </div>
                 </div>
               ))}
@@ -152,26 +239,70 @@ export function Events() {
       {/* Registration Modal */}
       <Modal
         isOpen={!!registerEvent}
-        onClose={() => { setRegisterEvent(null); setRegistered(false) }}
+        onClose={closeRegistration}
         title="Event Registration"
-        size="sm"
+        size="md"
       >
         {selectedEvent && !registered && (
           <div>
             <h3 className="font-semibold text-gray-900 mb-1">{selectedEvent.title}</h3>
             <p className="text-gray-400 text-sm mb-5">{formatDate(selectedEvent.start_date)}</p>
-            <div className="space-y-3 mb-6">
-              <input placeholder="Full Name" className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-gold" />
-              <input placeholder="Email Address" type="email" className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-gold" />
+            <div className="space-y-4 mb-6">
+              <Input
+                label="Full Name"
+                value={registrationForm.name}
+                onChange={e => setRegistrationForm(f => ({ ...f, name: e.target.value }))}
+                error={formErrors.name}
+              />
+              <Input
+                label="Phone Number"
+                value={registrationForm.phone}
+                onChange={e => setRegistrationForm(f => ({ ...f, phone: e.target.value }))}
+                error={formErrors.phone}
+              />
+              <Input
+                label="Email Address"
+                type="email"
+                value={registrationForm.email}
+                onChange={e => setRegistrationForm(f => ({ ...f, email: e.target.value }))}
+                error={formErrors.email}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Age"
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={registrationForm.age}
+                  onChange={e => setRegistrationForm(f => ({ ...f, age: e.target.value }))}
+                  error={formErrors.age}
+                />
+                <Select
+                  label="Gender"
+                  value={registrationForm.gender}
+                  onChange={e => setRegistrationForm(f => ({ ...f, gender: e.target.value }))}
+                  options={[
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'other', label: 'Other' },
+                  ]}
+                  error={formErrors.gender}
+                />
+              </div>
             </div>
-            <Button fullWidth onClick={handleRegister}>Confirm Registration</Button>
+            {submitError && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {submitError}
+              </div>
+            )}
+            <Button fullWidth onClick={handleRegister} loading={submitting}>Confirm Registration</Button>
           </div>
         )}
         {registered && (
           <div className="text-center py-6">
             <div className="text-5xl mb-4">✅</div>
             <h3 className="font-semibold text-primary text-lg mb-2">You're Registered!</h3>
-            <p className="text-gray-500 text-sm">We've sent a confirmation email with event details.</p>
+            <p className="text-gray-500 text-sm">Your registration details were submitted successfully.</p>
           </div>
         )}
       </Modal>

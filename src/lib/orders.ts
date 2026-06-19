@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, supabaseConfigured } from './supabase'
 import type {
   NutriOrder,
   NutriOrderItem,
@@ -9,9 +9,6 @@ import type {
   OrderStatusHistoryEntry,
 } from '../types'
 
-const supabaseConfigured = () =>
-  Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
-
 const isUUID = (s: string | null | undefined): boolean =>
   !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
 
@@ -19,24 +16,6 @@ function generateOrderNumber(): string {
   const ts = Date.now().toString()
   const random = Math.floor(Math.random() * 100).toString().padStart(2, '0')
   return 'NUT-' + ts.slice(-4) + random
-}
-
-// ─── Demo mode (localStorage) ─────────────────────────────────────────────
-
-function getDemoOrders(): NutriOrder[] {
-  try {
-    return JSON.parse(localStorage.getItem('nutrigo_orders') ?? '[]') as NutriOrder[]
-  } catch {
-    return []
-  }
-}
-
-function persistDemoOrder(order: NutriOrder): void {
-  const orders = getDemoOrders()
-  const idx = orders.findIndex(o => o.id === order.id)
-  if (idx >= 0) orders[idx] = order
-  else orders.unshift(order)
-  localStorage.setItem('nutrigo_orders', JSON.stringify(orders))
 }
 
 // ─── Row mapper (Supabase row → NutriOrder) ───────────────────────────────
@@ -94,47 +73,8 @@ export async function createOrder(
   const orderNumber = generateOrderNumber()
   const now = new Date().toISOString()
 
-  if (!supabaseConfigured()) {
-    const id = crypto.randomUUID()
-    const order: NutriOrder = {
-      id,
-      order_number: orderNumber,
-      user_id: input.user_id ?? null,
-      customer_name: input.customer_name,
-      customer_email: input.customer_email,
-      customer_phone: input.customer_phone,
-      delivery_address_line: input.delivery_address_line,
-      city: input.city,
-      nearest_landmark: input.nearest_landmark,
-      preferred_delivery_date: input.preferred_delivery_date,
-      preferred_delivery_time: input.preferred_delivery_time,
-      special_instructions: input.special_instructions,
-      meal_plan_id: isUUID(input.meal_plan_id) ? input.meal_plan_id : null,
-      meal_plan_name: input.meal_plan_name,
-      total_amount: input.total_amount,
-      payment_method: input.payment_method,
-      checkout_payment_status: 'pending',
-      checkout_status: 'order_received',
-      delivery_status: 'not_assigned',
-      created_at: now,
-      updated_at: now,
-      items: input.items.map(item => ({
-        id: crypto.randomUUID(),
-        order_id: id,
-        meal_id: item.meal_id ?? null,
-        meal_name: item.meal_name,
-        meal_category: item.meal_category,
-        quantity: item.quantity,
-        calories: item.calories,
-        price: item.price,
-        created_at: now,
-      })),
-      status_history: [
-        { id: crypto.randomUUID(), order_id: id, status: 'order_received', note: 'Order placed successfully', created_at: now },
-      ],
-    }
-    persistDemoOrder(order)
-    return { order, error: null }
+  if (!supabaseConfigured) {
+    return { order: null, error: 'Supabase is not configured' }
   }
 
   const { data: orderRow, error: orderError } = await supabase
@@ -211,14 +151,8 @@ export async function getOrderForTracking(
 ): Promise<{ order: NutriOrder | null; error: string | null }> {
   const NOT_FOUND = 'Order not found. Please check your order number and contact details.'
 
-  if (!supabaseConfigured()) {
-    const order = getDemoOrders().find(
-      o =>
-        o.order_number === orderNumber &&
-        (o.customer_phone === contact ||
-          o.customer_email.toLowerCase() === contact.toLowerCase())
-    )
-    return { order: order ?? null, error: order ? null : NOT_FOUND }
+  if (!supabaseConfigured) {
+    return { order: null, error: 'Supabase is not configured' }
   }
 
   const { data, error } = await supabase
@@ -247,9 +181,7 @@ export async function getOrderForTracking(
 }
 
 export async function getUserOrders(userId: string): Promise<NutriOrder[]> {
-  if (!supabaseConfigured()) {
-    return getDemoOrders().filter(o => o.user_id === userId)
-  }
+  if (!supabaseConfigured) return []
 
   const { data } = await supabase
     .from('orders')
@@ -261,9 +193,7 @@ export async function getUserOrders(userId: string): Promise<NutriOrder[]> {
 }
 
 export async function adminGetOrders(): Promise<NutriOrder[]> {
-  if (!supabaseConfigured()) {
-    return getDemoOrders()
-  }
+  if (!supabaseConfigured) return []
 
   const { data } = await supabase
     .from('orders')
@@ -277,10 +207,7 @@ export async function adminGetOrders(): Promise<NutriOrder[]> {
 export async function adminGetOrderById(
   id: string
 ): Promise<{ order: NutriOrder | null; history: OrderStatusHistoryEntry[] }> {
-  if (!supabaseConfigured()) {
-    const order = getDemoOrders().find(o => o.id === id) ?? null
-    return { order, history: order?.status_history ?? [] }
-  }
+  if (!supabaseConfigured) return { order: null, history: [] }
 
   const [{ data: orderRow }, { data: historyRows }] = await Promise.all([
     supabase.from('orders').select('*, order_items(*)').eq('id', id).single(),
@@ -304,24 +231,7 @@ export async function adminUpdateOrderStatus(
   status: NutriOrderStatus,
   note?: string
 ): Promise<{ error: string | null }> {
-  if (!supabaseConfigured()) {
-    const orders = getDemoOrders()
-    const order = orders.find(o => o.id === id)
-    if (order) {
-      order.checkout_status = status
-      order.updated_at = new Date().toISOString()
-      const entry: OrderStatusHistoryEntry = {
-        id: crypto.randomUUID(),
-        order_id: id,
-        status,
-        note,
-        created_at: new Date().toISOString(),
-      }
-      order.status_history = [entry, ...(order.status_history ?? [])]
-      persistDemoOrder(order)
-    }
-    return { error: null }
-  }
+  if (!supabaseConfigured) return { error: 'Supabase is not configured' }
 
   const { error } = await supabase
     .from('orders')
@@ -345,16 +255,7 @@ export async function adminUpdatePaymentStatus(
   id: string,
   status: NutriPaymentStatus
 ): Promise<{ error: string | null }> {
-  if (!supabaseConfigured()) {
-    const orders = getDemoOrders()
-    const order = orders.find(o => o.id === id)
-    if (order) {
-      order.checkout_payment_status = status
-      order.updated_at = new Date().toISOString()
-      persistDemoOrder(order)
-    }
-    return { error: null }
-  }
+  if (!supabaseConfigured) return { error: 'Supabase is not configured' }
 
   const { error } = await supabase
     .from('orders')
@@ -368,16 +269,7 @@ export async function adminUpdateDeliveryStatus(
   id: string,
   status: DeliveryStatus
 ): Promise<{ error: string | null }> {
-  if (!supabaseConfigured()) {
-    const orders = getDemoOrders()
-    const order = orders.find(o => o.id === id)
-    if (order) {
-      order.delivery_status = status
-      order.updated_at = new Date().toISOString()
-      persistDemoOrder(order)
-    }
-    return { error: null }
-  }
+  if (!supabaseConfigured) return { error: 'Supabase is not configured' }
 
   const { error } = await supabase
     .from('orders')
@@ -391,16 +283,7 @@ export async function adminSaveNote(
   id: string,
   note: string
 ): Promise<{ error: string | null }> {
-  if (!supabaseConfigured()) {
-    const orders = getDemoOrders()
-    const order = orders.find(o => o.id === id)
-    if (order) {
-      order.admin_note = note
-      order.updated_at = new Date().toISOString()
-      persistDemoOrder(order)
-    }
-    return { error: null }
-  }
+  if (!supabaseConfigured) return { error: 'Supabase is not configured' }
 
   const { error } = await supabase
     .from('orders')

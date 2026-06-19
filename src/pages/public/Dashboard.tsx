@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom'
 import { Droplets, Dumbbell, Plus, Flame, Apple, Calendar, Video, Clock } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import type { SessionBooking } from '../../types'
-import { mockNutritionLogs, mockWeightLogs, mockWorkoutLogs, mockSubscriptions, mockMeals } from '../../data/mockData'
+import type { SessionBooking, NutritionLog, WeightLog, WorkoutLog, Subscription, Meal } from '../../types'
 import { MacroDonut } from '../../components/charts/MacroDonut'
 import { ProgressChart } from '../../components/charts/ProgressChart'
 import { NutritionChart } from '../../components/charts/NutritionChart'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { StatusBadge } from '../../components/ui/Badge'
+import { OrderNowButton } from '../../components/delivery/OrderNowButton'
 import { formatDate } from '../../lib/helpers'
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -19,35 +19,64 @@ export function Dashboard() {
   const { profile, user } = useAuth()
   const [activeTab, setActiveTab] = useState<'overview' | 'nutrition' | 'weight' | 'workout' | 'sessions'>('overview')
   const [sessionBookings, setSessionBookings] = useState<SessionBooking[]>([])
+  const [nutritionLogs, setNutritionLogs] = useState<NutritionLog[]>([])
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
+  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([])
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [todayMeals, setTodayMeals] = useState<Meal[]>([])
 
   useEffect(() => {
     if (!user) return
-    supabase.from('session_bookings')
-      .select('*, provider:providers(name, title, specialty)')
-      .eq('user_id', user.id)
-      .order('booking_date', { ascending: false })
-      .then(({ data }) => setSessionBookings(data ?? []))
+    Promise.all([
+      supabase.from('session_bookings').select('*, provider:providers(name, title, specialty)').eq('user_id', user.id).order('booking_date', { ascending: false }),
+      supabase.from('nutrition_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(50),
+      supabase.from('weight_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30),
+      supabase.from('workout_logs').select('*').eq('user_id', user.id).order('log_date', { ascending: false }).limit(30),
+      supabase.from('subscriptions').select('*, meal_plan:meal_plans(*)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ]).then(async ([sessionsResult, nutritionResult, weightResult, workoutResult, subscriptionResult]) => {
+      setSessionBookings(sessionsResult.data ?? [])
+      setNutritionLogs((nutritionResult.data ?? []) as NutritionLog[])
+      setWeightLogs((weightResult.data ?? []) as WeightLog[])
+      setWorkoutLogs((workoutResult.data ?? []) as WorkoutLog[])
+      const activeSubscription = (subscriptionResult.data as Subscription | null) ?? null
+      setSubscription(activeSubscription)
+
+      if (activeSubscription?.meal_plan_id) {
+        const weekday = new Date().getDay() === 0 ? 7 : new Date().getDay()
+        const { data: mealsData } = await supabase
+          .from('meals')
+          .select('*')
+          .eq('meal_plan_id', activeSubscription.meal_plan_id)
+          .eq('day_of_week', weekday)
+          .eq('is_active', true)
+          .order('meal_type')
+        setTodayMeals((mealsData ?? []) as Meal[])
+      } else {
+        setTodayMeals([])
+      }
+    })
   }, [user])
 
-  const todayLogs = mockNutritionLogs.filter(l => l.log_date === '2024-04-26')
+  const todayDate = new Date().toISOString().split('T')[0]
+  const todayLogs = nutritionLogs.filter(l => l.log_date === todayDate)
   const todayCalories = todayLogs.reduce((s, l) => s + l.calories, 0)
-  const todayProtein = todayLogs.reduce((s, l) => s + l.protein, 0)
-  const todayCarbs = todayLogs.reduce((s, l) => s + l.carbs, 0)
-  const todayFat = todayLogs.reduce((s, l) => s + l.fat, 0)
+  const todayProtein = todayLogs.reduce((s, l) => s + Number(l.protein), 0)
+  const todayCarbs = todayLogs.reduce((s, l) => s + Number(l.carbs), 0)
+  const todayFat = todayLogs.reduce((s, l) => s + Number(l.fat), 0)
   const todayWater = todayLogs.reduce((s, l) => s + (l.water_ml ?? 0), 0)
-
-  const subscription = mockSubscriptions[0]
-  const todayMeals = mockMeals.filter(m => m.day_of_week === 1)
-
-  const nutritionChartData = [
-    { date: 'Mon', calories: 1380, protein: 80, carbs: 105, fat: 42 },
-    { date: 'Tue', calories: 1520, protein: 85, carbs: 120, fat: 48 },
-    { date: 'Wed', calories: 1450, protein: 105, carbs: 110, fat: 56 },
-    { date: 'Thu', calories: 1380, protein: 78, carbs: 95, fat: 44 },
-    { date: 'Fri', calories: 1480, protein: 88, carbs: 115, fat: 52 },
-    { date: 'Sat', calories: 1600, protein: 75, carbs: 135, fat: 58 },
-    { date: 'Sun', calories: 1380, protein: 105, carbs: 70, fat: 56 },
-  ]
+  const nutritionChartData = Array.from({ length: 7 }).map((_, index) => {
+    const date = new Date()
+    date.setDate(date.getDate() - (6 - index))
+    const iso = date.toISOString().split('T')[0]
+    const dayLogs = nutritionLogs.filter(log => log.log_date === iso)
+    return {
+      date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      calories: dayLogs.reduce((sum, log) => sum + log.calories, 0),
+      protein: dayLogs.reduce((sum, log) => sum + Number(log.protein), 0),
+      carbs: dayLogs.reduce((sum, log) => sum + Number(log.carbs), 0),
+      fat: dayLogs.reduce((sum, log) => sum + Number(log.fat), 0),
+    }
+  })
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
@@ -91,7 +120,7 @@ export function Dashboard() {
               { label: "Today's Calories", value: `${todayCalories}`, unit: '/ 1,500 kcal', icon: Flame, color: 'text-orange-500', bg: 'bg-orange-50' },
               { label: 'Protein', value: `${todayProtein}g`, unit: '/ 120g target', icon: Apple, color: 'text-primary', bg: 'bg-primary/10' },
               { label: 'Water', value: `${(todayWater / 1000).toFixed(1)}L`, unit: '/ 2.5L target', icon: Droplets, color: 'text-blue-500', bg: 'bg-blue-50' },
-              { label: 'Workouts', value: '3', unit: 'this week', icon: Dumbbell, color: 'text-gold', bg: 'bg-gold/10' },
+              { label: 'Workouts', value: String(workoutLogs.length), unit: 'logged', icon: Dumbbell, color: 'text-gold', bg: 'bg-gold/10' },
             ].map(stat => (
               <Card key={stat.label} padding="md">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${stat.bg}`}>
@@ -122,9 +151,12 @@ export function Dashboard() {
                   </div>
                 </>
               ) : (
-                <Link to="/menu" className="block text-center py-3 bg-gold text-white rounded-xl text-sm font-medium">
+                <OrderNowButton
+                  unstyled
+                  className="block w-full text-center py-3 bg-gold text-white rounded-xl text-sm font-medium hover:bg-gold-dark"
+                >
                   Subscribe to a Plan
-                </Link>
+                </OrderNowButton>
               )}
             </Card>
 
@@ -226,9 +258,9 @@ export function Dashboard() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Current Weight', value: '76.8 kg', delta: '-1.7 kg' },
-              { label: 'Start Weight', value: '78.5 kg', delta: '' },
-              { label: 'Goal Weight', value: '70 kg', delta: '−6.8 kg to go' },
+              { label: 'Current Weight', value: weightLogs[0] ? `${weightLogs[0].weight} kg` : '—', delta: weightLogs[0] && weightLogs[1] ? `${(Number(weightLogs[0].weight) - Number(weightLogs[1].weight)).toFixed(1)} kg vs previous` : '' },
+              { label: 'Start Weight', value: weightLogs.length > 0 ? `${weightLogs[weightLogs.length - 1].weight} kg` : '—', delta: '' },
+              { label: 'Goal Weight', value: profile?.weight ? `${profile.weight} kg` : '—', delta: '' },
             ].map(stat => (
               <Card key={stat.label}>
                 <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
@@ -242,12 +274,12 @@ export function Dashboard() {
               <h3 className="font-semibold text-gray-900">Weight Progress</h3>
               <Button size="sm" variant="outline"><Plus size={14} /> Log Weight</Button>
             </div>
-            <ProgressChart data={mockWeightLogs} />
+            <ProgressChart data={weightLogs.slice().reverse()} />
           </Card>
           <Card>
             <h3 className="font-semibold text-gray-900 mb-4">Weight Log History</h3>
             <div className="space-y-2">
-              {mockWeightLogs.slice().reverse().map(log => (
+              {weightLogs.slice().reverse().map(log => (
                 <div key={log.id} className="flex justify-between items-center py-2.5 border-b border-gray-50 last:border-0">
                   <span className="text-sm text-gray-600">{formatDate(log.log_date)}</span>
                   <div className="text-right">
@@ -343,7 +375,7 @@ export function Dashboard() {
               <Button size="sm" variant="outline"><Plus size={14} /> Log Workout</Button>
             </div>
             <div className="space-y-3">
-              {mockWorkoutLogs.map(log => (
+              {workoutLogs.map(log => (
                 <div key={log.id} className="flex items-center gap-4 p-4 bg-light-olive/30 rounded-xl">
                   <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
                     <Dumbbell size={18} className="text-primary" />

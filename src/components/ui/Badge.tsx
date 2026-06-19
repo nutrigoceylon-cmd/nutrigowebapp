@@ -28,6 +28,7 @@ export function StatusBadge({ status }: { status: string }) {
     upcoming: 'bg-blue-100 text-blue-800',
     ongoing: 'bg-green-100 text-green-800',
     completed: 'bg-gray-100 text-gray-700',
+    registered: 'bg-emerald-100 text-emerald-800',
     user: 'bg-gray-100 text-gray-700',
     admin: 'bg-purple-100 text-purple-800',
     nutritionist: 'bg-teal-100 text-teal-800',

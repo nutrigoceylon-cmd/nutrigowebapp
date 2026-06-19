@@ -27,7 +27,6 @@ import { SessionDetail } from './pages/public/SessionDetail'
 import { AdminDashboard } from './pages/admin/Dashboard'
 import { AdminUsers } from './pages/admin/Users'
 import { AdminMealPlans } from './pages/admin/MealPlans'
-import { AdminMeals } from './pages/admin/Meals'
 import { AdminOrders } from './pages/admin/Orders'
 import { AdminOrderDetail } from './pages/admin/OrderDetail'
 import { AdminSubscriptions } from './pages/admin/Subscriptions'
@@ -99,7 +98,7 @@ function AppRoutes() {
       } />
       <Route path="/admin/meals" element={
         <ProtectedRoute requireAdmin>
-          <AdminLayout><AdminMeals /></AdminLayout>
+          <Navigate to="/admin/meal-plans" replace />
         </ProtectedRoute>
       } />
       <Route path="/admin/orders" element={

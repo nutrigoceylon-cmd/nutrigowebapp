@@ -19,8 +19,7 @@ export function OrderConfirmation() {
 
   useEffect(() => {
     if (order || !orderNumber) return
-    // If no state was passed (e.g. user refreshed), try loading from demo localStorage
-    // In real Supabase mode, we'd need phone/email to do the lookup, so we redirect to track
+    // If the page reloads without navigation state, try the order lookup once.
     getOrderForTracking(orderNumber, '').then(({ order: o }) => {
       if (o) setOrder(o)
       else navigate('/track-order')

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
 import type { Podcast } from '../../types'
 import { supabase } from '../../lib/supabase'
+import { ImageUpload } from '../../components/ui/ImageUpload'
 import { Table } from '../../components/ui/Table'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -13,7 +14,16 @@ export function AdminPodcasts() {
   const [podcasts, setPodcasts] = useState<Podcast[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Podcast | null>(null)
-  const [form, setForm] = useState({ title: '', description: '', episode_number: 1, duration: 0, audio_url: '', show_notes: '', is_published: false })
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    episode_number: 1,
+    duration: 0,
+    audio_url: '',
+    show_notes: '',
+    image_url: '',
+    is_published: false,
+  })
 
   useEffect(() => { load() }, [])
 
@@ -25,22 +35,45 @@ export function AdminPodcasts() {
   function openCreate() {
     setEditing(null)
     const nextEp = podcasts.length > 0 ? Math.max(...podcasts.map(p => p.episode_number)) + 1 : 1
-    setForm({ title: '', description: '', episode_number: nextEp, duration: 0, audio_url: '', show_notes: '', is_published: false })
+    setForm({
+      title: '',
+      description: '',
+      episode_number: nextEp,
+      duration: 0,
+      audio_url: '',
+      show_notes: '',
+      image_url: '',
+      is_published: false,
+    })
     setModalOpen(true)
   }
 
   function openEdit(pod: Podcast) {
     setEditing(pod)
-    setForm({ title: pod.title, description: pod.description ?? '', episode_number: pod.episode_number, duration: pod.duration, audio_url: pod.audio_url, show_notes: pod.show_notes ?? '', is_published: pod.is_published })
+    setForm({
+      title: pod.title,
+      description: pod.description ?? '',
+      episode_number: pod.episode_number,
+      duration: pod.duration,
+      audio_url: pod.audio_url,
+      show_notes: pod.show_notes ?? '',
+      image_url: pod.image_url ?? '',
+      is_published: pod.is_published,
+    })
     setModalOpen(true)
   }
 
   async function handleSave() {
+    const payload = {
+      ...form,
+      image_url: form.image_url || null,
+    }
+
     if (editing) {
-      await supabase.from('podcasts').update(form).eq('id', editing.id)
+      await supabase.from('podcasts').update(payload).eq('id', editing.id)
     } else {
       await supabase.from('podcasts').insert({
-        ...form,
+        ...payload,
         published_at: form.is_published ? new Date().toISOString() : null,
       })
     }
@@ -103,6 +136,11 @@ export function AdminPodcasts() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Episode' : 'New Episode'} size="md">
         <div className="space-y-4">
+          <ImageUpload
+            label="Episode Cover Image"
+            value={form.image_url}
+            onChange={url => setForm(f => ({ ...f, image_url: url }))}
+          />
           <Input label="Episode Title" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
           <div className="grid grid-cols-2 gap-4">
             <Input label="Episode #" type="number" value={String(form.episode_number)} onChange={e => setForm(f => ({ ...f, episode_number: Number(e.target.value) }))} />
@@ -112,7 +150,12 @@ export function AdminPodcasts() {
             <label className="text-sm font-medium text-gray-700 block mb-1.5">Description</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-gold resize-none" />
           </div>
-          <Input label="Audio URL" value={form.audio_url} onChange={e => setForm(f => ({ ...f, audio_url: e.target.value }))} placeholder="https://..." />
+          <Input
+            label="YouTube URL"
+            value={form.audio_url}
+            onChange={e => setForm(f => ({ ...f, audio_url: e.target.value }))}
+            placeholder="https://www.youtube.com/watch?v=..."
+          />
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1.5">Show Notes</label>
             <textarea value={form.show_notes} onChange={e => setForm(f => ({ ...f, show_notes: e.target.value }))} rows={3} className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-gold resize-none" />

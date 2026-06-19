@@ -38,8 +38,9 @@ export function AdminSessionBookings() {
             key: 'client', label: 'Client',
             render: b => (
               <div>
-                <p className="font-medium text-gray-900 text-sm">{(b as any).profile?.full_name ?? '—'}</p>
-                <p className="text-xs text-gray-400">{(b as any).profile?.phone ?? ''}</p>
+                <p className="font-medium text-gray-900 text-sm">{b.contact_name ?? (b as any).profile?.full_name ?? '—'}</p>
+                <p className="text-xs text-gray-400">{b.contact_phone ?? (b as any).profile?.phone ?? ''}</p>
+                <p className="text-xs text-gray-400">{b.contact_email ?? ''}</p>
               </div>
             ),
           },
@@ -88,8 +89,10 @@ export function AdminSessionBookings() {
         {viewing && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><p className="text-gray-400 text-xs mb-0.5">Client</p><p className="font-medium">{(viewing as any).profile?.full_name}</p></div>
+              <div><p className="text-gray-400 text-xs mb-0.5">Client</p><p className="font-medium">{viewing.contact_name ?? (viewing as any).profile?.full_name}</p></div>
               <div><p className="text-gray-400 text-xs mb-0.5">Provider</p><p className="font-medium">{(viewing as any).provider?.name}</p></div>
+              <div><p className="text-gray-400 text-xs mb-0.5">Phone</p><p className="font-medium">{viewing.contact_phone ?? (viewing as any).profile?.phone ?? '—'}</p></div>
+              <div><p className="text-gray-400 text-xs mb-0.5">Email</p><p className="font-medium break-all">{viewing.contact_email ?? '—'}</p></div>
               <div><p className="text-gray-400 text-xs mb-0.5">Date</p><p className="font-medium">{formatDate(viewing.booking_date)}</p></div>
               <div><p className="text-gray-400 text-xs mb-0.5">Time</p><p className="font-medium">{viewing.start_time}</p></div>
               <div><p className="text-gray-400 text-xs mb-0.5">Type</p><p className="font-medium">{viewing.session_type}</p></div>

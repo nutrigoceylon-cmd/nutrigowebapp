@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Leaf, Eye, EyeOff, Check, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, Check, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../../components/ui/Button'
+import { BrandLogo } from '../../components/layout/BrandLogo'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Please enter your full name'),
@@ -60,11 +61,10 @@ export function SignUp() {
           <img src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=1200" alt="" className="w-full h-full object-cover opacity-15" />
         </div>
         <div className="relative text-center">
-          <div className="flex items-center gap-3 justify-center mb-8">
-            <div className="bg-gold rounded-xl p-2.5">
-              <Leaf size={24} className="text-white" />
+          <div className="flex justify-center mb-8">
+            <div className="rounded-3xl bg-white px-5 py-4 shadow-lg">
+              <BrandLogo imageClassName="h-14 w-auto" />
             </div>
-            <span className="font-serif text-3xl font-bold text-white">NutriGo</span>
           </div>
           <h2 className="font-serif text-3xl font-bold text-white mb-4">Start Your Journey</h2>
           <p className="text-white/60 text-base mb-10 max-w-xs">
@@ -86,11 +86,8 @@ export function SignUp() {
       {/* Right */}
       <div className="flex-1 overflow-y-auto flex items-start justify-center p-6 py-10">
         <div className="w-full max-w-lg">
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="bg-primary rounded-lg p-1.5">
-              <Leaf size={18} className="text-white" />
-            </div>
-            <span className="font-serif text-xl font-bold text-primary">NutriGo</span>
+          <div className="lg:hidden mb-8">
+            <BrandLogo imageClassName="h-12 w-auto" />
           </div>
 
           <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-primary transition-colors mb-6">

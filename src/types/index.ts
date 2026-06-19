@@ -258,7 +258,12 @@ export interface Event {
 export interface EventRegistration {
   id: string
   event_id: string
-  user_id: string
+  user_id?: string | null
+  contact_name?: string | null
+  contact_phone?: string | null
+  contact_email?: string | null
+  attendee_age?: number | null
+  attendee_gender?: 'male' | 'female' | 'other' | null
   status: 'registered' | 'cancelled' | 'attended'
   created_at: string
   profile?: Profile
@@ -321,8 +326,18 @@ export interface WorkoutLog {
   created_at: string
 }
 
-export type ProviderSpecialty = 'nutritionist' | 'dietitian' | 'personal_trainer' | 'doctor' | 'therapist' | 'wellness_coach'
+export type ProviderSpecialty = string
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
+
+export interface ProviderCategory {
+  slug: string
+  label: string
+  description?: string
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
 
 export interface Provider {
   id: string
@@ -352,6 +367,9 @@ export interface SessionBooking {
   session_type: string
   status: BookingStatus
   notes?: string
+  contact_name?: string
+  contact_phone?: string
+  contact_email?: string
   meeting_link?: string
   created_at: string
   updated_at: string

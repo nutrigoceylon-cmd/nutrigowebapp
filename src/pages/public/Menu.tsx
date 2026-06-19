@@ -1,17 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Filter, X, MessageCircle, Phone, Clock } from 'lucide-react'
 import type { MealPlan, Meal, MealType, GoalType } from '../../types'
-import { supabase } from '../../lib/supabase'
-import { mockMeals, mockMealPlans } from '../../data/mockData'
+import { supabase, supabaseConfigured } from '../../lib/supabase'
 import { formatCurrency, getGoalLabel } from '../../lib/helpers'
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-// Replace with your WhatsApp business number (digits only, with country code, no +)
-const WHATSAPP_NUMBER = '94XXXXXXXXX'
-
-const supabaseConfigured = () =>
-  Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
+import { buildWhatsAppUrl } from '../../lib/site'
 
 // ─── Filter options (preserved) ───────────────────────────────────────────────
 const mealTypes: { value: MealType | 'all'; label: string }[] = [
@@ -45,9 +37,8 @@ const goalColors: Record<string, { bg: string; text: string; border: string }> =
 }
 
 export function Menu() {
-  const navigate = useNavigate()
-
   // ─── State (all original state preserved) ─────────────────────────────────
+  const [loading, setLoading] = useState(true)
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
   const [selectedMealType, setSelectedMealType] = useState<MealType | 'all'>('all')
@@ -60,51 +51,44 @@ export function Menu() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
 
   useEffect(() => {
-    if (!supabaseConfigured()) {
-      setMeals(mockMeals)
-      setMealPlans(mockMealPlans)
-      return
+    let cancelled = false
+
+    if (!supabaseConfigured) {
+      setLoading(false)
+      return () => { cancelled = true }
     }
-    supabase.from('meal_plans').select('*').eq('is_active', true).order('created_at')
-      .then(({ data }) => setMealPlans(data ?? []))
-    supabase.from('meals').select('*').eq('is_active', true).order('meal_type')
-      .then(({ data }) => setMeals(data && data.length > 0 ? data : mockMeals))
+
+    async function loadMenuData() {
+      setLoading(true)
+
+      const [plansResult, mealsResult] = await Promise.all([
+        supabase.from('meal_plans').select('*').eq('is_active', true).order('created_at'),
+        supabase.from('meals').select('*').eq('is_active', true).order('meal_type'),
+      ])
+
+      if (cancelled) return
+
+      setMealPlans(plansResult.data ?? [])
+      setMeals(mealsResult.data ?? [])
+      setLoading(false)
+    }
+
+    loadMenuData().catch(() => {
+      if (cancelled) return
+      setLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const filteredMeals = meals.filter(m =>
     selectedMealType === 'all' || m.meal_type === selectedMealType
   )
 
-  // ─── WhatsApp helpers ──────────────────────────────────────────────────────
-  function buildWhatsAppMessage(meal: Meal): string {
-    const ingredientLines = meal.ingredients?.length > 0
-      ? meal.ingredients.map(i => `• ${i}`).join('\n')
-      : 'Details available on request'
-
-    const text = [
-      `Hi NutriGo! 👋`,
-      ``,
-      `I'd like to order:`,
-      ``,
-      `🍽️ *${meal.name}*`,
-      `Type: ${meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)}`,
-      ``,
-      `Ingredients:`,
-      ingredientLines,
-      ``,
-      `Nutrition:`,
-      `• Calories: ${meal.calories} kcal`,
-      `• Protein: ${meal.protein}g | Carbs: ${meal.carbs}g | Fat: ${meal.fat}g`,
-      ``,
-      `Please let me know the price and delivery details. Thank you!`,
-    ].join('\n')
-
-    return encodeURIComponent(text)
-  }
-
-  // ─── Checkout navigation ───────────────────────────────────────────────────
-  function handleProceedToCheckout(meal: Meal) {
-    const parentPlan: MealPlan = mealPlans.find(p => p.id === meal.meal_plan_id) ?? {
+  function getParentPlan(meal: Meal): MealPlan {
+    return mealPlans.find(p => p.id === meal.meal_plan_id) ?? {
       id: meal.id,
       name: meal.name,
       description: meal.description ?? '',
@@ -116,13 +100,51 @@ export function Menu() {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
-    navigate('/checkout', {
-      state: {
-        plan: parentPlan,
-        selectedMeals: [{ meal, quantity: 1 }],
-      },
-    })
-    setSelectedMeal(null)
+  }
+
+  // ─── WhatsApp helpers ──────────────────────────────────────────────────────
+  function buildWhatsAppMessage(meal: Meal): string {
+    const parentPlan = getParentPlan(meal)
+    const ingredientLines = meal.ingredients?.length > 0
+      ? meal.ingredients.map(i => `- ${i}`).join('\n')
+      : '- Details available on request'
+    const allergenLines = meal.allergens?.length > 0
+      ? meal.allergens.map(allergen => `- ${allergen}`).join('\n')
+      : '- No major allergens listed'
+
+    const text = [
+      'Hi NutriGo! I would like to place an order.',
+      '',
+      '*Selected Menu Item*',
+      `- Menu name: ${meal.name}`,
+      `- Meal type: ${meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)}`,
+      `- Meal plan: ${parentPlan.name}`,
+      `- Goal: ${getGoalLabel(parentPlan.goal_type)}`,
+      `- Prep time: ${meal.prep_time} min`,
+      '',
+      "*What's Included*",
+      ingredientLines,
+      '',
+      '*Nutrition Information*',
+      `- Calories: ${meal.calories} kcal`,
+      `- Protein: ${meal.protein}g`,
+      `- Carbs: ${meal.carbs}g`,
+      `- Fat: ${meal.fat}g`,
+      `- Fiber: ${meal.fiber}g`,
+      '',
+      '*Allergen Information*',
+      allergenLines,
+      '',
+      '*Please share:*',
+      '- Price',
+      '- Delivery availability',
+      '- Earliest delivery slot',
+      '- Payment options',
+      '',
+      'Thank you!',
+    ].join('\n')
+
+    return text
   }
 
   // Preserved: used by the hidden subscription plan cards below
@@ -244,7 +266,42 @@ export function Menu() {
       {/* ── Meal grid ─────────────────────────────────────────────────────── */}
       <section className="py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {filteredMeals.length > 0 ? (
+          {loading ? (
+            <div className="rounded-[2rem] border border-gold/15 bg-gradient-to-br from-white via-light-olive/40 to-light-green/60 px-6 py-14 shadow-sm">
+              <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+                <div className="relative mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20">
+                  <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/25 border-t-gold" />
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold">Loading Menu</p>
+                <h2 className="mt-2 font-serif text-3xl font-bold text-primary">Preparing today&apos;s plans and meals</h2>
+                <p className="mt-3 text-sm leading-6 text-gray-500">
+                  We&apos;re fetching the latest meal plans and nutrition details for you.
+                </p>
+              </div>
+
+              <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+                  >
+                    <div className="h-44 animate-pulse bg-light-olive/70" />
+                    <div className="space-y-3 p-4">
+                      <div className="h-5 w-20 animate-pulse rounded-full bg-gold/15" />
+                      <div className="h-5 w-3/4 animate-pulse rounded-lg bg-gray-200" />
+                      <div className="h-3 w-full animate-pulse rounded-lg bg-gray-100" />
+                      <div className="h-3 w-2/3 animate-pulse rounded-lg bg-gray-100" />
+                      <div className="grid grid-cols-3 gap-2 pt-2">
+                        {Array.from({ length: 3 }).map((__, metricIndex) => (
+                          <div key={metricIndex} className="h-14 animate-pulse rounded-lg bg-light-olive/60" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : filteredMeals.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {filteredMeals.map(meal => (
                 <div
@@ -309,7 +366,7 @@ export function Menu() {
             Message us on WhatsApp and our nutrition team will help you choose the right meal for your goals.
           </p>
           <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}`}
+            href={buildWhatsAppUrl()}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20be5c] text-white px-8 py-3 rounded-xl font-medium transition-colors"
@@ -395,7 +452,7 @@ export function Menu() {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Order via WhatsApp</p>
                 <div className="grid grid-cols-2 gap-2">
                   <a
-                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${buildWhatsAppMessage(selectedMeal)}`}
+                    href={buildWhatsAppUrl(buildWhatsAppMessage(selectedMeal))}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20be5c] text-white rounded-xl py-3 text-sm font-medium transition-colors"
@@ -403,7 +460,7 @@ export function Menu() {
                     <MessageCircle size={16} /> Message
                   </a>
                   <a
-                    href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                    href={buildWhatsAppUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 border border-[#25D366]/40 bg-[#25D366]/8 hover:bg-[#25D366]/15 text-[#128C7E] rounded-xl py-3 text-sm font-medium transition-colors"
@@ -421,8 +478,9 @@ export function Menu() {
 
                 {/* Checkout */}
                 <button
-                  onClick={() => handleProceedToCheckout(selectedMeal)}
-                  className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-secondary text-white rounded-xl py-3 text-sm font-semibold transition-colors cursor-pointer"
+                  type="button"
+                  disabled
+                  className="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-500 rounded-xl py-3 text-sm font-semibold cursor-not-allowed"
                 >
                   Proceed to Checkout <ChevronRight size={16} />
                 </button>

@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Leaf, ShieldCheck, ChevronRight, BookOpen, Headphones, CalendarDays, Star, Play, Calculator, Users, Clock, BadgeCheck } from 'lucide-react'
-import { mockMealPlans, mockArticles } from '../../data/mockData'
-import { formatCurrency, getGoalLabel } from '../../lib/helpers'
+import { ArrowRight, Leaf, ShieldCheck, ChevronRight, BookOpen, Headphones, CalendarDays, Calculator, Users, Clock, BadgeCheck, ChefHat, Truck, Phone, Flame, MapPin } from 'lucide-react'
+import heroImg from '../../assets/hero.jpeg'
+import { OrderNowButton } from '../../components/delivery/OrderNowButton'
+import { supabase, supabaseConfigured } from '../../lib/supabase'
+import type { Article, Event, MealPlan, Podcast, Provider } from '../../types'
+import { formatCurrency, formatDateShort, getGoalLabel } from '../../lib/helpers'
 
 const steps = [
   { icon: '🎯', num: '1', title: 'Choose Your Goal', desc: 'Select your goal: Weight Loss, Muscle Gain or Healthy Lifestyle.' },
@@ -17,12 +20,6 @@ const planColors: Record<string, { title: string; icon: string; border: string; 
   healthy_lifestyle: { title: 'text-orange-500', icon: '🥗', border: 'border-orange-200', bg: 'bg-orange-50/50' },
 }
 
-const testimonials = [
-  { name: 'Jessica M.', goal: 'Lost 18 lbs', avatar: 'J', color: 'bg-accent', text: 'NutriGo completely changed my relationship with food. The meals are genuinely delicious.', stars: 5 },
-  { name: 'Marcus T.', goal: 'Gained 12 lbs muscle', avatar: 'M', color: 'bg-blue-500', text: 'As a competitive athlete, I need precise nutrition. The Power Builder plan delivers exactly that.', stars: 5 },
-  { name: 'Priya K.', goal: '4 months subscriber', avatar: 'P', color: 'bg-orange-400', text: 'The convenience is unmatched. I used to spend Sundays meal prepping. Now I have that time back.', stars: 5 },
-]
-
 const activityMultipliers: Record<string, { label: string; value: number }> = {
   sedentary:        { label: 'Sedentary (little/no exercise)', value: 1.2 },
   lightly_active:   { label: 'Lightly active (1–3 days/wk)', value: 1.375 },
@@ -30,6 +27,15 @@ const activityMultipliers: Record<string, { label: string; value: number }> = {
   very_active:      { label: 'Very active (6–7 days/wk)', value: 1.725 },
   extra_active:     { label: 'Extra active (athlete/physical job)', value: 1.9 },
 }
+
+const specialtyLabels: Record<string, string> = {
+  nutritionist: 'Nutritionist',
+  ayurvedic_doctor: 'Ayurvedic doctor',
+  western_doctor: 'Western doctor',
+  yoga_instructor: 'Yoga instructor',
+}
+
+const sessionHeroImage = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=1200&q=80'
 
 function calcTDEE(age: number, gender: 'male' | 'female', heightCm: number, weightKg: number, activity: string): number {
   const bmr = gender === 'male'
@@ -39,11 +45,36 @@ function calcTDEE(age: number, gender: 'male' | 'female', heightCm: number, weig
 }
 
 export function Home() {
-  const featuredPlans = mockMealPlans.filter(p => p.is_active).slice(0, 3)
-  const featuredArticles = mockArticles.filter(a => a.is_published).slice(0, 2)
+  const [featuredPlans, setFeaturedPlans] = useState<MealPlan[]>([])
+  const [featuredArticles, setFeaturedArticles] = useState<Article[]>([])
+  const [featuredPodcast, setFeaturedPodcast] = useState<Podcast | null>(null)
+  const [featuredEvent, setFeaturedEvent] = useState<Event | null>(null)
+  const [providers, setProviders] = useState<Provider[]>([])
+  const [mealPlanCount, setMealPlanCount] = useState(0)
+  const [minPlanCalories, setMinPlanCalories] = useState<number | null>(null)
 
   const [calc, setCalc] = useState({ age: '', gender: 'male' as 'male' | 'female', height: '', weight: '', activity: 'moderately_active' })
   const [tdee, setTdee] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!supabaseConfigured) return
+    Promise.all([
+      supabase.from('meal_plans').select('*').eq('is_active', true).order('created_at'),
+      supabase.from('articles').select('*').eq('is_published', true).order('published_at', { ascending: false }).limit(2),
+      supabase.from('podcasts').select('*').eq('is_published', true).order('published_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('events').select('*').in('status', ['upcoming', 'ongoing']).order('start_date').limit(1).maybeSingle(),
+      supabase.from('providers').select('*').eq('is_active', true).order('name'),
+    ]).then(([plansResult, articlesResult, podcastResult, eventResult, providersResult]) => {
+      const plans = plansResult.data ?? []
+      setFeaturedPlans(plans.slice(0, 3))
+      setFeaturedArticles(articlesResult.data ?? [])
+      setFeaturedPodcast(podcastResult.data ?? null)
+      setFeaturedEvent(eventResult.data ?? null)
+      setProviders(providersResult.data ?? [])
+      setMealPlanCount(plans.length)
+      setMinPlanCalories(plans.length > 0 ? Math.min(...plans.map(plan => plan.calories_per_day)) : null)
+    })
+  }, [])
 
   function handleCalc() {
     const age = Number(calc.age)
@@ -57,11 +88,20 @@ export function Home() {
     ? tdee < 1800 ? 'weight_loss' : tdee > 2500 ? 'muscle_gain' : 'healthy_lifestyle'
     : null
 
+  const featuredProviders = providers.slice(0, 4)
+  const primaryProvider = featuredProviders[0] ?? null
+  const providerCount = providers.length
+  const specialtyCount = new Set(providers.map(provider => provider.specialty)).size
+  const providerMinPrice = providers.length > 0 ? Math.min(...providers.map(provider => provider.session_price)) : null
+  const featuredArticle = featuredArticles[0] ?? null
+  const moreArticles = featuredArticles.slice(1)
+  const mealPlanTarget = (planId: string) => `/meal-selection/${planId}`
+
   return (
     <div className="bg-white">
       {/* ── HERO ── */}
       <section className="bg-surface overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-0">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left */}
             <div>
@@ -69,46 +109,52 @@ export function Home() {
                 <Leaf size={13} />
                 Sri Lanka's Trusted Healthy Meal Partner
               </div>
-              <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-4">
-                Healthy Eating<br />
-                <span className="text-accent">Made Easy</span>
-              </h1>
-              <p className="text-gray-500 text-lg leading-relaxed mb-8">
-                Scientifically balanced meal plans, delivered fresh to your door. Achieve your goals with NutriGo.
-              </p>
-              <div className="flex flex-wrap gap-4 mb-10">
-                <Link
-                  to="/menu"
-                  className="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-white font-semibold px-7 py-3.5 rounded-xl transition-colors shadow-md text-base"
+              <h1 className="font-serif text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-5">
+                Fresh Healthy Meals,<br />
+                <span
+                  className="text-accent"
+                  style={{ textDecoration: 'underline', textDecorationColor: '#D97706', textDecorationStyle: 'wavy', textDecorationThickness: '3px', textUnderlineOffset: '8px' }}
                 >
-                  Order Now <ArrowRight size={18} />
+                  Made for Your Goals
+                </span>
+              </h1>
+              <p className="text-gray-500 text-base leading-relaxed mb-8 max-w-md">
+                Chef-prepared, calorie-balanced meals delivered fresh across Sri Lanka. Choose your goal, pick your plan, and eat healthy without the stress.
+              </p>
+
+              {/* Buttons */}
+              <div className="flex flex-wrap gap-4 mb-10">
+                <OrderNowButton
+                  unstyled
+                  className="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-white font-semibold px-7 py-3.5 rounded-xl transition-colors shadow-md text-sm"
+                  icon={<ArrowRight size={18} />}
+                  iconPosition="end"
+                >
+                  Order Today
+                </OrderNowButton>
+                <Link
+                  to="/sessions"
+                  className="inline-flex items-center gap-2 border border-gray-300 hover:border-primary text-gray-700 hover:text-primary font-medium px-6 py-3.5 rounded-xl transition-colors text-sm"
+                >
+                  Book a Free Nutrition Call <Phone size={16} />
                 </Link>
-                <button className="inline-flex items-center gap-2.5 text-gray-600 hover:text-primary font-medium text-base transition-colors cursor-pointer">
-                  <div className="w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center hover:border-primary transition-colors">
-                    <Play size={14} className="text-primary ml-0.5" />
-                  </div>
-                  How it works
-                </button>
               </div>
 
               {/* Trust badges */}
-              <div className="flex items-center gap-6 pt-6 border-t border-gray-100 flex-wrap">
+              <div className="flex items-center gap-5 flex-wrap">
                 {[
-                  { icon: '🌿', label: 'Scientifically Balanced' },
-                  { icon: '👨‍🍳', label: 'Chef Prepared' },
-                  { icon: '🚚', label: 'Delivered Fresh' },
+                  { icon: <Leaf size={15} />, label: 'Scientifically\nBalanced' },
+                  { icon: <ChefHat size={15} />, label: 'Chef\nPrepared' },
+                  { icon: <Truck size={15} />, label: 'Delivered\nFresh' },
+                  { icon: <ShieldCheck size={15} />, label: 'Nutritionist\nApproved' },
                 ].map(b => (
-                  <div key={b.label} className="flex items-center gap-2 text-sm text-gray-500">
-                    <span className="text-lg">{b.icon}</span>
-                    <span className="hidden sm:inline font-medium">{b.label}</span>
+                  <div key={b.label} className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-full border border-accent/30 bg-accent/5 flex items-center justify-center text-accent flex-shrink-0">
+                      {b.icon}
+                    </div>
+                    <span className="text-xs font-medium text-gray-600 leading-tight whitespace-pre-line">{b.label}</span>
                   </div>
                 ))}
-                <a
-                  href="#calorie-calculator"
-                  className="flex items-center gap-1.5 text-sm font-medium text-gold hover:text-gold/80 transition-colors ml-auto"
-                >
-                  <Calculator size={14} /> Calculate your calories →
-                </a>
               </div>
             </div>
 
@@ -116,29 +162,112 @@ export function Home() {
             <div className="relative">
               <div className="relative rounded-3xl overflow-hidden shadow-2xl">
                 <img
-                  src="https://images.unsplash.com/photo-1547592180-85f173990554?w=900"
-                  alt="Healthy meal delivery"
-                  className="w-full h-[420px] object-cover"
+                  src={heroImg}
+                  alt="Healthy meal bowl"
+                  className="w-full h-[480px] object-cover"
                 />
-                {/* Award badge */}
-                <div className="absolute bottom-5 right-5 bg-primary text-white rounded-2xl px-4 py-3 text-center shadow-xl">
-                  <div className="text-xl mb-0.5">🏆</div>
-                  <p className="text-xs font-bold leading-tight">Business Spark 2026</p>
-                  <p className="text-xs text-white/70">1st Place Winner</p>
+                {/* Plans from card — inside image bottom right */}
+                <div className="absolute right-4 bottom-5 bg-white rounded-2xl shadow-lg px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                      <Flame size={17} className="text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-gray-400 leading-none mb-0.5">Plans from</p>
+                      <p className="font-bold text-gray-900 text-xl leading-none">
+                        {minPlanCalories ?? '--'} <span className="text-xs font-normal text-gray-400">kcal</span>
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              {/* Floating stat card */}
+
+              {/* Live stat card */}
               <div className="absolute -left-6 top-8 bg-white rounded-2xl shadow-xl px-5 py-4 border border-gray-100 hidden lg:block">
-                <p className="text-2xl font-bold text-primary">5000+</p>
-                <p className="text-xs text-gray-400 mt-0.5">Happy Customers</p>
-                <div className="flex gap-0.5 mt-2">
-                  {[...Array(5)].map((_, i) => <Star key={i} size={10} className="fill-yellow-400 text-yellow-400" />)}
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+                    <Users size={16} className="text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900 leading-none">{mealPlanCount}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Active Meal Plans</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {providerCount} published expert{providerCount === 1 ? '' : 's'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 3 Action Cards ── */}
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-4 pb-12">
+            {/* Order Meal */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                  <Leaf size={26} className="text-accent" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-accent mb-1">Quick Action</p>
+                  <h3 className="font-bold text-xl text-gray-900 mb-1.5">Order Meal</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">Choose a fresh meal plan and start your delivery in just a few steps.</p>
                 </div>
               </div>
+              <OrderNowButton
+                unstyled
+                className="inline-flex items-center gap-2 bg-primary hover:bg-secondary text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+                icon={<ArrowRight size={16} />}
+                iconPosition="end"
+              >
+                Order Meal
+              </OrderNowButton>
+            </div>
+
+            {/* Book Session */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                  <Users size={26} className="text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-1">Expert Support</p>
+                  <h3 className="font-bold text-xl text-gray-900 mb-1.5">Book Health Advisory Session</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">Speak with a qualified advisor for nutrition guidance tailored to your goals.</p>
+                </div>
+              </div>
+              <Link
+                to="/sessions"
+                className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-500 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+              >
+                Book Session <ArrowRight size={16} />
+              </Link>
+            </div>
+
+            {/* Calorie Calculator */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <Calculator size={26} className="text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-blue-500 mb-1">Nutrition Tool</p>
+                  <h3 className="font-bold text-xl text-gray-900 mb-1.5">Go to Calorie Calculator</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">Find your daily calorie need before choosing your meal plan.</p>
+                </div>
+              </div>
+              <a
+                href="#calorie-calculator"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
+              >
+                Calculate Calories <ArrowRight size={16} />
+              </a>
             </div>
           </div>
         </div>
       </section>
+
+      
 
       {/* ── HOW IT WORKS ── */}
       <section className="py-20 bg-white">
@@ -183,7 +312,7 @@ export function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {featuredPlans.map(plan => {
-              const style = planColors[plan.goal_type]
+              const style = planColors[plan.goal_type] ?? planColors.healthy_lifestyle
               return (
                 <div key={plan.id} className={`bg-white rounded-2xl overflow-hidden border ${style.border} shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200`}>
                   <div className="relative h-48 overflow-hidden">
@@ -203,7 +332,7 @@ export function Home() {
                       <span className="font-bold text-gray-900 text-lg">{formatCurrency(plan.price)}<span className="text-xs font-normal text-gray-400">/wk</span></span>
                     </div>
                     <Link
-                      to="/menu"
+                      to={mealPlanTarget(plan.id)}
                       className="block w-full text-center border border-gray-200 hover:border-primary text-gray-600 hover:text-primary py-2.5 rounded-xl text-sm font-medium transition-colors bg-white"
                     >
                       See Menu
@@ -213,6 +342,11 @@ export function Home() {
               )
             })}
           </div>
+          {featuredPlans.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center text-gray-500">
+              No meal plans have been published yet.
+            </div>
+          )}
         </div>
       </section>
 
@@ -235,21 +369,31 @@ export function Home() {
               </p>
 
               <div className="space-y-2 mb-8">
-                {[
-                  { icon: '🥗', title: 'Nutrition Consultation', desc: '60-min deep dive into your diet, health history, and goals.' },
-                  { icon: '📋', title: 'Custom Meal Planning', desc: 'A fully personalized weekly meal plan built just for you.' },
-                  { icon: '💪', title: 'Fitness & Wellness Coaching', desc: 'Combine smart nutrition with a fitness plan for faster results.' },
-                  { icon: '🩺', title: 'Health Assessment', desc: 'Comprehensive review with a registered dietitian or doctor.' },
-                ].map(s => (
-                  <div key={s.title} className="flex items-start gap-3.5 p-3.5 rounded-xl hover:bg-surface transition-colors group">
-                    <span className="text-xl mt-0.5 flex-shrink-0">{s.icon}</span>
+                {featuredProviders.length > 0 ? featuredProviders.map(provider => (
+                  <Link
+                    key={provider.id}
+                    to={`/sessions/${provider.id}`}
+                    className="flex items-start gap-3.5 p-3.5 rounded-xl hover:bg-surface transition-colors group"
+                  >
+                    <span className="w-10 h-10 rounded-full bg-primary text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
+                      {provider.name[0]}
+                    </span>
                     <div>
-                      <p className="font-semibold text-gray-900 text-sm group-hover:text-accent transition-colors">{s.title}</p>
-                      <p className="text-gray-400 text-xs leading-relaxed mt-0.5">{s.desc}</p>
+                      <p className="font-semibold text-gray-900 text-sm group-hover:text-accent transition-colors">{provider.name}</p>
+                      <p className="text-gray-400 text-xs leading-relaxed mt-0.5">
+                        {provider.title || specialtyLabels[provider.specialty] || provider.specialty}
+                      </p>
                     </div>
-                    <ChevronRight size={15} className="text-gray-300 group-hover:text-accent ml-auto mt-1 flex-shrink-0 transition-colors" />
+                    <div className="ml-auto text-right">
+                      <p className="text-xs font-semibold text-primary">{formatCurrency(provider.session_price)}</p>
+                      <p className="text-[11px] text-gray-400">{provider.session_duration} min</p>
+                    </div>
+                  </Link>
+                )) : (
+                  <div className="rounded-xl border border-dashed border-gray-200 px-4 py-5 text-sm text-gray-500">
+                    No session providers have been published yet.
                   </div>
-                ))}
+                )}
               </div>
 
               <div className="flex flex-wrap gap-3">
@@ -271,36 +415,36 @@ export function Home() {
             {/* Right — visual */}
             <div className="relative">
               <img
-                src="https://images.unsplash.com/photo-1551076805-e1869033e561?w=700"
-                alt="1-on-1 nutrition session"
+                src={sessionHeroImage}
+                alt="Nutrition consultation session"
                 className="rounded-3xl shadow-xl w-full h-[440px] object-cover"
               />
-              {/* Rating card */}
-              <div className="absolute bottom-6 left-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
-                <div className="flex gap-0.5 mb-1.5">
-                  {[...Array(5)].map((_, i) => <Star key={i} size={12} className="fill-yellow-400 text-yellow-400" />)}
-                </div>
-                <p className="font-bold text-gray-900 text-sm">4.9 / 5 Rating</p>
-                <p className="text-xs text-gray-400 mt-0.5">Based on 1,200+ sessions</p>
-              </div>
-              {/* Expert count badge */}
-              <div className="absolute top-6 right-6 bg-primary text-white rounded-2xl px-4 py-3 text-center shadow-lg">
-                <p className="text-2xl font-bold">20+</p>
-                <p className="text-xs text-white/70 mt-0.5">Certified Experts</p>
-              </div>
-              {/* Stats row */}
-              <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-[85%] bg-white rounded-2xl shadow-lg border border-gray-100 px-5 py-3 flex justify-around hidden lg:flex">
-                {[
-                  { icon: <Clock size={15} className="text-gold" />, value: '30 min', label: 'Free Intro Call' },
-                  { icon: <BadgeCheck size={15} className="text-accent" />, value: '100%', label: 'Certified Experts' },
-                  { icon: <Users size={15} className="text-primary" />, value: '5000+', label: 'Sessions Done' },
-                ].map(s => (
-                  <div key={s.label} className="text-center">
-                    <div className="flex items-center justify-center gap-1 mb-0.5">{s.icon}<span className="font-bold text-gray-900 text-sm">{s.value}</span></div>
-                    <p className="text-xs text-gray-400">{s.label}</p>
+              {providerCount > 0 && (
+                <>
+                  <div className="absolute bottom-6 left-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
+                    <p className="font-bold text-gray-900 text-sm">{providerCount} Expert{providerCount === 1 ? '' : 's'} Available</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {primaryProvider ? `Featured now: ${primaryProvider.name}` : 'Book directly from the live provider list'}
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <div className="absolute top-6 right-6 bg-primary text-white rounded-2xl px-4 py-3 text-center shadow-lg">
+                    <p className="text-2xl font-bold">{specialtyCount}</p>
+                    <p className="text-xs text-white/70 mt-0.5">Care Categories</p>
+                  </div>
+                  <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-[85%] bg-white rounded-2xl shadow-lg border border-gray-100 px-5 py-3 flex justify-around hidden lg:flex">
+                    {[
+                      { icon: <Clock size={15} className="text-gold" />, value: providerMinPrice ? formatCurrency(providerMinPrice) : 'Live', label: 'Sessions From' },
+                      { icon: <BadgeCheck size={15} className="text-accent" />, value: specialtyCount.toString(), label: 'Specialties' },
+                      { icon: <Users size={15} className="text-primary" />, value: providerCount.toString(), label: 'Active Providers' },
+                    ].map(stat => (
+                      <div key={stat.label} className="text-center">
+                        <div className="flex items-center justify-center gap-1 mb-0.5">{stat.icon}<span className="font-bold text-gray-900 text-sm">{stat.value}</span></div>
+                        <p className="text-xs text-gray-400">{stat.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -341,25 +485,49 @@ export function Home() {
             {/* Articles */}
             <div className="bg-surface rounded-2xl p-6 border border-gray-100 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4 mb-5">
-                <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0">
-                  <img src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=200" alt="" className="w-full h-full object-cover" />
-                </div>
-                <div>
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center mb-1">
-                    <BookOpen size={17} className="text-primary" />
-                  </div>
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={20} className="text-primary" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Articles & Blogs</h3>
                   <p className="text-xs text-gray-400">Expert tips on nutrition, workouts, mindfulness and healthy living.</p>
                 </div>
               </div>
+              <div className="relative rounded-xl overflow-hidden mb-5 bg-gray-100 h-32">
+                {featuredArticle?.image_url ? (
+                  <img src={featuredArticle.image_url} alt={featuredArticle.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-primary/5">
+                    <BookOpen size={32} className="text-primary" />
+                  </div>
+                )}
+              </div>
               <div className="space-y-3 mb-5">
-                {featuredArticles.map(a => (
-                  <Link key={a.id} to={`/articles/${a.slug}`} className="block group">
-                    <p className="text-sm font-medium text-gray-700 group-hover:text-accent transition-colors line-clamp-2 leading-snug">{a.title}</p>
-                  </Link>
-                ))}
+                {featuredArticle ? (
+                  <>
+                    <p className="text-xs text-gray-400">
+                      {featuredArticle.category}
+                      {featuredArticle.published_at ? ` · ${formatDateShort(featuredArticle.published_at)}` : ''}
+                    </p>
+                    <Link to={`/articles/${featuredArticle.slug}`} className="block group">
+                      <p className="text-sm font-medium text-gray-700 group-hover:text-accent transition-colors line-clamp-2 leading-snug">
+                        {featuredArticle.title}
+                      </p>
+                      <p className="text-xs text-gray-400 line-clamp-2 mt-1">
+                        {featuredArticle.excerpt}
+                      </p>
+                    </Link>
+                    {moreArticles.map(article => (
+                      <Link key={article.id} to={`/articles/${article.slug}`} className="block group border-t border-gray-100 pt-3">
+                        <p className="text-sm font-medium text-gray-700 group-hover:text-accent transition-colors line-clamp-2 leading-snug">
+                          {article.title}
+                        </p>
+                      </Link>
+                    ))}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">No articles published yet.</p>
+                )}
               </div>
               <Link to="/articles" className="inline-flex items-center gap-1 text-sm text-accent font-medium hover:text-accent-dark">
                 Read Articles <ChevronRight size={14} />
@@ -378,12 +546,27 @@ export function Home() {
                 </div>
               </div>
               <div className="relative rounded-xl overflow-hidden mb-5 bg-gray-100 h-32">
-                <img src="https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=400" alt="" className="w-full h-full object-cover opacity-60" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center shadow-lg">
-                    <Play size={18} className="text-white ml-0.5" />
+                {featuredPodcast?.image_url ? (
+                  <img src={featuredPodcast.image_url} alt={featuredPodcast.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-purple-50">
+                    <Headphones size={32} className="text-purple-600" />
                   </div>
-                </div>
+                )}
+              </div>
+              <div className="space-y-2 mb-5">
+                {featuredPodcast ? (
+                  <>
+                    <p className="text-xs text-gray-400">
+                      Episode {featuredPodcast.episode_number}
+                      {featuredPodcast.published_at ? ` · ${formatDateShort(featuredPodcast.published_at)}` : ''}
+                    </p>
+                    <p className="text-sm font-medium text-gray-700 line-clamp-2">{featuredPodcast.title}</p>
+                    <p className="text-xs text-gray-400 line-clamp-2">{featuredPodcast.description}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">No podcast episode published yet.</p>
+                )}
               </div>
               <Link to="/podcast" className="inline-flex items-center gap-1 text-sm text-purple-600 font-medium hover:text-purple-700">
                 Listen Now <ChevronRight size={14} />
@@ -402,48 +585,40 @@ export function Home() {
                 </div>
               </div>
               <div className="relative rounded-xl overflow-hidden mb-5 h-32">
-                <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400" alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                <div className="absolute bottom-3 left-3 text-white">
-                  <p className="text-xs font-medium">Next: May 18 · Cooking Class</p>
-                </div>
+                {featuredEvent?.image_url ? (
+                  <img src={featuredEvent.image_url} alt={featuredEvent.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-orange-50 flex items-center justify-center">
+                    <CalendarDays size={32} className="text-orange-500" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 mb-5">
+                {featuredEvent ? (
+                  <>
+                    <p className="text-sm font-medium text-gray-700 line-clamp-2">{featuredEvent.title}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <CalendarDays size={12} />
+                      <span>{formatDateShort(featuredEvent.start_date)}</span>
+                    </div>
+                    {featuredEvent.location && !featuredEvent.is_virtual && (
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <MapPin size={12} />
+                        <span className="truncate">{featuredEvent.location}</span>
+                      </div>
+                    )}
+                    {featuredEvent.is_virtual && (
+                      <p className="text-xs text-gray-400">Virtual event</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">No upcoming event published yet.</p>
+                )}
               </div>
               <Link to="/events" className="inline-flex items-center gap-1 text-sm text-orange-500 font-medium hover:text-orange-600">
                 Explore Events <ChevronRight size={14} />
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── TESTIMONIALS ── */}
-      <section className="py-20 bg-surface">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-gray-900">
-              What Our <span className="text-accent">Customers</span> Say
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map(t => (
-              <div key={t.name} className="bg-white rounded-2xl p-7 border border-gray-100 shadow-sm">
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: t.stars }).map((_, i) => (
-                    <Star key={i} size={14} className="fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-                <p className="text-gray-600 text-sm leading-relaxed mb-6 italic">"{t.text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full ${t.color} flex items-center justify-center text-white font-bold`}>
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
-                    <p className="text-accent text-xs font-medium">{t.goal}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -544,13 +719,14 @@ export function Home() {
                   ))}
                 </div>
                 {goalFromTdee && (
-                  <Link
-                    to="/menu"
+                  <OrderNowButton
+                    unstyled
                     className="inline-flex items-center gap-2 bg-accent hover:bg-accent-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
+                    icon={<ArrowRight size={16} />}
+                    iconPosition="end"
                   >
                     See Recommended {goalFromTdee === 'weight_loss' ? 'Weight Loss' : goalFromTdee === 'muscle_gain' ? 'Muscle Gain' : 'Healthy Lifestyle'} Plan
-                    <ArrowRight size={16} />
-                  </Link>
+                  </OrderNowButton>
                 )}
               </div>
             )}
@@ -570,28 +746,29 @@ export function Home() {
               <p className="text-white/60 mb-2">Take the first step towards a healthier, happier you.</p>
               <div className="flex items-center gap-2 mt-4">
                 <ShieldCheck size={14} className="text-accent-light" />
-                <span className="text-white/50 text-xs">No spam. Unsubscribe anytime.</span>
+                <span className="text-white/50 text-xs">Browse live plans and book from published provider listings.</span>
               </div>
             </div>
             <div>
-              <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                <input type="text" placeholder="Your Name" className="flex-1 px-4 py-3 rounded-xl bg-white text-sm outline-none text-gray-700 placeholder-gray-400" />
-                <input type="email" placeholder="Your Email" className="flex-1 px-4 py-3 rounded-xl bg-white text-sm outline-none text-gray-700 placeholder-gray-400" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <OrderNowButton
+                  unstyled
+                  className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-dark text-white font-semibold px-7 py-3.5 rounded-xl transition-colors w-full"
+                  icon={<ArrowRight size={18} />}
+                  iconPosition="end"
+                >
+                  Order Now
+                </OrderNowButton>
+                <Link
+                  to="/sessions"
+                  className="inline-flex items-center justify-center gap-2 border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold px-7 py-3.5 rounded-xl transition-colors w-full"
+                >
+                  Book a Session <ArrowRight size={18} />
+                </Link>
               </div>
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 bg-accent hover:bg-accent-dark text-white font-semibold px-7 py-3.5 rounded-xl transition-colors w-full justify-center"
-              >
-                Get Started <ArrowRight size={18} />
-              </Link>
-              <div className="flex items-center gap-3 mt-4">
-                <div className="flex -space-x-2">
-                  {['A','B','C','D'].map(l => (
-                    <div key={l} className="w-7 h-7 rounded-full bg-white/20 border-2 border-primary flex items-center justify-center text-white text-xs font-bold">{l}</div>
-                  ))}
-                </div>
-                <span className="text-white/50 text-xs">Join 5000+ happy customers</span>
-              </div>
+              <p className="text-white/50 text-xs">
+                {mealPlanCount} active meal plan{mealPlanCount === 1 ? '' : 's'} and {providerCount} published expert{providerCount === 1 ? '' : 's'} available now.
+              </p>
             </div>
           </div>
         </div>

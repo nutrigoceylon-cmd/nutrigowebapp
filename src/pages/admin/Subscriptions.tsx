@@ -1,16 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PauseCircle, XCircle } from 'lucide-react'
-import { mockSubscriptions } from '../../data/mockData'
 import type { SubscriptionStatus } from '../../types'
+import type { Subscription } from '../../types'
+import { supabase } from '../../lib/supabase'
 import { Table } from '../../components/ui/Table'
 import { StatusBadge } from '../../components/ui/Badge'
 import { formatDate, formatCurrency } from '../../lib/helpers'
 
 export function AdminSubscriptions() {
-  const [subscriptions, setSubscriptions] = useState(mockSubscriptions)
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
+
+  useEffect(() => {
+    supabase
+      .from('subscriptions')
+      .select('*, profile:profiles(full_name), meal_plan:meal_plans(name, price)')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setSubscriptions((data as Subscription[]) ?? []))
+  }, [])
 
   function updateStatus(id: string, status: SubscriptionStatus) {
     setSubscriptions(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+    supabase.from('subscriptions').update({ status }).eq('id', id)
   }
 
   return (

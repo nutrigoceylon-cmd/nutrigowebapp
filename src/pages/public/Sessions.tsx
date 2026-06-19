@@ -5,25 +5,21 @@ import type { Provider } from '../../types'
 import { supabase } from '../../lib/supabase'
 import { formatCurrency } from '../../lib/helpers'
 
+const DAY_NAMES = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
 const specialtyLabels: Record<string, string> = {
   nutritionist: 'Nutritionist',
-  dietitian: 'Registered Dietitian',
-  personal_trainer: 'Personal Trainer',
-  doctor: 'Doctor',
-  therapist: 'Therapist',
-  wellness_coach: 'Wellness Coach',
+  ayurvedic_doctor: 'Ayurvedic doctor',
+  western_doctor: 'Western doctor',
+  yoga_instructor: 'Yoga instructor',
 }
 
 const specialtyColors: Record<string, string> = {
-  nutritionist: 'bg-green-100 text-green-700',
-  dietitian: 'bg-teal-100 text-teal-700',
-  personal_trainer: 'bg-blue-100 text-blue-700',
-  doctor: 'bg-red-100 text-red-700',
-  therapist: 'bg-purple-100 text-purple-700',
-  wellness_coach: 'bg-orange-100 text-orange-700',
+  nutritionist: 'bg-emerald-100 text-emerald-800',
+  ayurvedic_doctor: 'bg-amber-100 text-amber-800',
+  western_doctor: 'bg-sky-100 text-sky-800',
+  yoga_instructor: 'bg-fuchsia-100 text-fuchsia-800',
 }
-
-const DAY_NAMES = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export function Sessions() {
   const [providers, setProviders] = useState<Provider[]>([])
@@ -45,7 +41,7 @@ export function Sessions() {
           <p className="text-gold font-semibold text-sm uppercase tracking-widest mb-3">Expert Care</p>
           <h1 className="font-serif text-4xl sm:text-5xl font-bold text-white mb-4">Book a Session</h1>
           <p className="text-white/60 text-lg">
-            Connect with certified nutritionists, dietitians, doctors and wellness coaches.
+            Connect with expert nutritionists, Ayurvedic doctors, Western doctors, and yoga instructors.
             Book a one-on-one session and take control of your health.
           </p>
         </div>
@@ -80,7 +76,7 @@ export function Sessions() {
                 filter === s ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
               }`}
             >
-              {s === 'all' ? 'All Specialties' : specialtyLabels[s] ?? s}
+              {s === 'all' ? 'All Categories' : specialtyLabels[s] ?? s}
             </button>
           ))}
         </div>
