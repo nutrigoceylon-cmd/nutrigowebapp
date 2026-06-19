@@ -95,6 +95,7 @@ export function Home() {
   const providerMinPrice = providers.length > 0 ? Math.min(...providers.map(provider => provider.session_price)) : null
   const featuredArticle = featuredArticles[0] ?? null
   const moreArticles = featuredArticles.slice(1)
+  const mealPlanTarget = (planId: string) => `/meal-selection/${planId}`
 
   return (
     <div className="bg-white">
@@ -330,12 +331,12 @@ export function Home() {
                       </div>
                       <span className="font-bold text-gray-900 text-lg">{formatCurrency(plan.price)}<span className="text-xs font-normal text-gray-400">/wk</span></span>
                     </div>
-                    <OrderNowButton
-                      unstyled
+                    <Link
+                      to={mealPlanTarget(plan.id)}
                       className="block w-full text-center border border-gray-200 hover:border-primary text-gray-600 hover:text-primary py-2.5 rounded-xl text-sm font-medium transition-colors bg-white"
                     >
                       See Menu
-                    </OrderNowButton>
+                    </Link>
                   </div>
                 </div>
               )

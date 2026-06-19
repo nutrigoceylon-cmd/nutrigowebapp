@@ -4,6 +4,7 @@ import { Check, ChevronRight, ShoppingCart, Minus, Plus, ArrowLeft } from 'lucid
 import type { MealPlan, Meal, MealType } from '../../types'
 import { supabase, supabaseConfigured } from '../../lib/supabase'
 import { formatCurrency, getGoalLabel } from '../../lib/helpers'
+import { buildWhatsAppUrl } from '../../lib/site'
 import { Button } from '../../components/ui/Button'
 
 const MEAL_TYPE_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -92,14 +93,42 @@ export function MealSelection() {
     })
   }
 
-  function proceedToCheckout() {
-    if (selectedMeals.size === 0) return
-    navigate('/checkout', {
-      state: {
-        plan,
-        selectedMeals: selectedList,
-      },
+  function buildWhatsAppMessage() {
+    if (!plan) return ''
+
+    const selectedMealLines = selectedList.map(({ meal, quantity }) => {
+      const macroSummary = `${meal.calories} kcal | P ${meal.protein}g | C ${meal.carbs}g | F ${meal.fat}g`
+      return `- ${meal.name} (${meal.meal_type}, qty: ${quantity})\n  ${macroSummary}`
     })
+
+    return [
+      'Hi NutriGo! I would like to place an order.',
+      '',
+      '*Selected Meal Plan*',
+      `- Plan: ${plan.name}`,
+      `- Goal: ${getGoalLabel(plan.goal_type)}`,
+      `- Duration: ${plan.plan_duration}`,
+      `- Plan price: ${formatCurrency(plan.price)}`,
+      '',
+      '*Selected Meals*',
+      ...selectedMealLines,
+      '',
+      '*Order Summary*',
+      `- Total items: ${totalSelected}`,
+      `- Total calories: ${totalCalories.toLocaleString()} kcal`,
+      '',
+      '*Please share:*',
+      '- Delivery availability',
+      '- Earliest delivery slot',
+      '- Payment options',
+      '',
+      'Thank you!',
+    ].join('\n')
+  }
+
+  function proceedToWhatsAppOrder() {
+    if (selectedMeals.size === 0 || !plan) return
+    window.open(buildWhatsAppUrl(buildWhatsAppMessage()), '_blank', 'noopener,noreferrer')
   }
 
   if (loading) {
@@ -370,11 +399,11 @@ export function MealSelection() {
 
               <Button
                 fullWidth
-                onClick={proceedToCheckout}
+                onClick={proceedToWhatsAppOrder}
                 disabled={selectedMeals.size === 0}
                 className="flex items-center justify-center gap-2"
               >
-                Continue to Checkout <ChevronRight size={16} />
+                Order via WhatsApp <ChevronRight size={16} />
               </Button>
 
               {selectedMeals.size === 0 && (
@@ -392,11 +421,11 @@ export function MealSelection() {
               <p className="text-gray-400 text-xs">{totalSelected} meal{totalSelected !== 1 ? 's' : ''} selected · {totalCalories.toLocaleString()} cal</p>
             </div>
             <Button
-              onClick={proceedToCheckout}
+              onClick={proceedToWhatsAppOrder}
               disabled={selectedMeals.size === 0}
               className="flex items-center gap-2"
             >
-              Checkout <ChevronRight size={15} />
+              WhatsApp Order <ChevronRight size={15} />
             </Button>
           </div>
         </div>
