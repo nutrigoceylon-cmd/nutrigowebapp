@@ -93,6 +93,8 @@ export function Home() {
   const providerCount = providers.length
   const specialtyCount = new Set(providers.map(provider => provider.specialty)).size
   const providerMinPrice = providers.length > 0 ? Math.min(...providers.map(provider => provider.session_price)) : null
+  const featuredArticle = featuredArticles[0] ?? null
+  const moreArticles = featuredArticles.slice(1)
 
   return (
     <div className="bg-white">
@@ -490,13 +492,39 @@ export function Home() {
                   <p className="text-xs text-gray-400">Expert tips on nutrition, workouts, mindfulness and healthy living.</p>
                 </div>
               </div>
+              <div className="relative rounded-xl overflow-hidden mb-5 bg-gray-100 h-32">
+                {featuredArticle?.image_url ? (
+                  <img src={featuredArticle.image_url} alt={featuredArticle.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-primary/5">
+                    <BookOpen size={32} className="text-primary" />
+                  </div>
+                )}
+              </div>
               <div className="space-y-3 mb-5">
-                {featuredArticles.map(a => (
-                  <Link key={a.id} to={`/articles/${a.slug}`} className="block group">
-                    <p className="text-sm font-medium text-gray-700 group-hover:text-accent transition-colors line-clamp-2 leading-snug">{a.title}</p>
-                  </Link>
-                ))}
-                {featuredArticles.length === 0 && (
+                {featuredArticle ? (
+                  <>
+                    <p className="text-xs text-gray-400">
+                      {featuredArticle.category}
+                      {featuredArticle.published_at ? ` · ${formatDateShort(featuredArticle.published_at)}` : ''}
+                    </p>
+                    <Link to={`/articles/${featuredArticle.slug}`} className="block group">
+                      <p className="text-sm font-medium text-gray-700 group-hover:text-accent transition-colors line-clamp-2 leading-snug">
+                        {featuredArticle.title}
+                      </p>
+                      <p className="text-xs text-gray-400 line-clamp-2 mt-1">
+                        {featuredArticle.excerpt}
+                      </p>
+                    </Link>
+                    {moreArticles.map(article => (
+                      <Link key={article.id} to={`/articles/${article.slug}`} className="block group border-t border-gray-100 pt-3">
+                        <p className="text-sm font-medium text-gray-700 group-hover:text-accent transition-colors line-clamp-2 leading-snug">
+                          {article.title}
+                        </p>
+                      </Link>
+                    ))}
+                  </>
+                ) : (
                   <p className="text-sm text-gray-500">No articles published yet.</p>
                 )}
               </div>

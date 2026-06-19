@@ -258,7 +258,12 @@ export interface Event {
 export interface EventRegistration {
   id: string
   event_id: string
-  user_id: string
+  user_id?: string | null
+  contact_name?: string | null
+  contact_phone?: string | null
+  contact_email?: string | null
+  attendee_age?: number | null
+  attendee_gender?: 'male' | 'female' | 'other' | null
   status: 'registered' | 'cancelled' | 'attended'
   created_at: string
   profile?: Profile

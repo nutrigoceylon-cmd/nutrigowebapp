@@ -38,17 +38,29 @@ export function AdminMeals() {
 
   useEffect(() => {
     load()
-    supabase.from('meal_plans').select('*').order('name').then(({ data }) => setMealPlans(data ?? []))
+    loadMealPlans()
   }, [])
+
+  useEffect(() => {
+    if (!modalOpen || editing || form.meal_plan_id || mealPlans.length === 0) return
+    setForm(prev => ({ ...prev, meal_plan_id: mealPlans[0].id }))
+  }, [modalOpen, editing, form.meal_plan_id, mealPlans])
 
   async function load() {
     const { data } = await supabase.from('meals').select('*').order('meal_plan_id').order('day_of_week')
     setMeals(data ?? [])
   }
 
-  function openCreate() {
+  async function loadMealPlans() {
+    const { data } = await supabase.from('meal_plans').select('*').order('name')
+    setMealPlans(data ?? [])
+    return data ?? []
+  }
+
+  async function openCreate() {
     setEditing(null)
-    setForm({ ...defaultForm, meal_plan_id: mealPlans[0]?.id ?? '' })
+    const plans = mealPlans.length > 0 ? mealPlans : await loadMealPlans()
+    setForm({ ...defaultForm, meal_plan_id: plans[0]?.id ?? '' })
     setModalOpen(true)
   }
 
@@ -205,8 +217,13 @@ export function AdminMeals() {
           />
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => setModalOpen(false)} fullWidth>Cancel</Button>
-            <Button onClick={handleSave} fullWidth>{editing ? 'Save Changes' : 'Add Meal'}</Button>
+            <Button onClick={handleSave} fullWidth disabled={!form.meal_plan_id}>{editing ? 'Save Changes' : 'Add Meal'}</Button>
           </div>
+          {mealPlans.length === 0 && (
+            <p className="text-xs text-red-500">
+              No meal plans found. Create a meal plan first, then add dishes to it.
+            </p>
+          )}
         </div>
       </Modal>
     </div>

@@ -12,7 +12,6 @@ const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/meal-plans', label: 'Meal Plans', icon: UtensilsCrossed },
-  { to: '/admin/meals', label: 'Meals / Dishes', icon: UtensilsCrossed },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
   { to: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
   { to: '/admin/articles', label: 'Articles CMS', icon: Newspaper },

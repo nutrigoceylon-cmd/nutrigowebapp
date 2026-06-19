@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react'
-import { Play, Pause, Clock, Headphones } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ExternalLink, Play, Clock, Headphones } from 'lucide-react'
 import type { Podcast } from '../../types'
 import { supabase } from '../../lib/supabase'
 import { formatDateShort, formatDuration } from '../../lib/helpers'
 
 export function Podcast() {
   const [podcasts, setPodcasts] = useState<Podcast[]>([])
-  const [playing, setPlaying] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.from('podcasts').select('*').eq('is_published', true).order('episode_number', { ascending: false })
@@ -64,28 +63,17 @@ export function Podcast() {
                     <p className="text-gray-500 text-sm leading-relaxed mb-6">{latest.description}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => setPlaying(playing === latest.id ? null : latest.id)}
+                    <a
+                      href={latest.audio_url}
+                      target="_blank"
+                      rel="noreferrer"
                       className="flex items-center gap-2.5 bg-primary hover:bg-secondary text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
                     >
-                      {playing === latest.id ? <Pause size={16} /> : <Play size={16} />}
-                      {playing === latest.id ? 'Pause' : 'Play Episode'}
-                    </button>
-                    <button className="text-sm text-gray-400 hover:text-primary transition-colors cursor-pointer">
-                      Show Notes
-                    </button>
+                      <Play size={16} />
+                      Watch on YouTube
+                      <ExternalLink size={14} />
+                    </a>
                   </div>
-                  {playing === latest.id && (
-                    <div className="mt-4">
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full w-1/3 bg-gold rounded-full" />
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>15:42</span>
-                        <span>{formatDuration(latest.duration)}</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -114,12 +102,14 @@ export function Podcast() {
                     <h3 className="font-semibold text-gray-900 text-sm truncate">{ep.title}</h3>
                     <p className="text-gray-400 text-xs mt-0.5 truncate">{ep.description}</p>
                   </div>
-                  <button
-                    onClick={() => setPlaying(playing === ep.id ? null : ep.id)}
+                  <a
+                    href={ep.audio_url}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex-shrink-0 w-10 h-10 rounded-full bg-primary hover:bg-secondary text-white flex items-center justify-center transition-colors cursor-pointer"
                   >
-                    {playing === ep.id ? <Pause size={15} /> : <Play size={15} />}
-                  </button>
+                    <Play size={15} />
+                  </a>
                 </div>
               ))}
             </div>

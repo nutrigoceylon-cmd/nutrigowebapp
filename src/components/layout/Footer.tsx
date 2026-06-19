@@ -131,7 +131,7 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-2 text-white/50 text-sm min-w-0">
                 <Mail size={13} className="text-accent-light flex-shrink-0" />
-                <span className="break-all">hello@nutrigo.lk</span>
+                <span className="break-all">info@nutrigoceylon.com</span>
               </div>
               <div className="flex items-center gap-2 text-white/50 text-sm min-w-0">
                 <MapPin size={13} className="text-accent-light flex-shrink-0" />
